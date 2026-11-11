@@ -1,0 +1,618 @@
+<div class="container-fluid px-md-4 py-3">
+  <!-- Top Bar -->
+  <div class="d-flex flex-wrap justify-content-between align-items-center mb-4 pb-2 border-bottom">
+    <div>
+      <h3 class="fw-bold mb-1">
+        <i class="fa-solid fa-cash-register text-success me-2"></i> Giao Ca & Kiểm Quỹ Thu Ngân
+      </h3>
+      <p class="text-muted small mb-0">
+        Kiểm kê tiền mặt thực tế trong két, đối soát doanh thu hệ thống và chốt Báo Cáo Kết Ca (Z-Report).
+      </p>
+    </div>
+    <div class="d-flex gap-2 mt-3 mt-md-0">
+      <a href="/staff/dashboard" class="btn btn-outline-secondary btn-sm rounded-pill px-3">
+        <i class="fa-solid fa-arrow-left me-1"></i> Bảng Đơn Hàng
+      </a>
+      <button class="btn btn-primary btn-sm rounded-pill px-3" onclick="window.location.reload()">
+        <i class="fa-solid fa-arrows-rotate me-1"></i> Làm Mới Dữ Liệu
+      </button>
+    </div>
+  </div>
+
+  <% const activeShift = currentShiftData ? currentShiftData.shift : null; %>
+  <% const stats = currentShiftData ? currentShiftData.stats : null; %>
+
+  <% if (!activeShift) { %>
+    <!-- CHƯA CÓ CA NÀO ĐANG MỞ -->
+    <div class="row justify-content-center mb-5">
+      <div class="col-lg-6 col-md-8">
+        <div class="custom-card p-4 border-0 shadow-sm text-center">
+          <div class="p-3 bg-light rounded-circle d-inline-flex mb-3">
+            <i class="fa-solid fa-door-open text-primary" style="font-size: 2.5rem;"></i>
+          </div>
+          <h4 class="fw-bold">Chưa Có Ca Làm Việc Nào Đang Mở</h4>
+          <p class="text-muted small mb-4">
+            Thu ngân bắt đầu ca làm việc bằng cách kiểm đếm và khai báo số tiền mặt lẻ ban đầu có sẵn trong két để thối tiền cho khách.
+          </p>
+
+          <form id="openShiftForm" onsubmit="handleOpenShift(event)" class="text-start">
+            <div class="mb-3">
+              <label class="form-label fw-semibold">Thu ngân mở ca</label>
+              <input type="text" class="form-control" value="<%= currentUser.fullName %> (<%= currentUser.email %>)" disabled>
+            </div>
+            <div class="mb-3">
+              <label class="form-label fw-semibold">
+                Tiền mặt ban đầu trong két (Tiền thối lẻ) <span class="text-danger">*</span>
+              </label>
+              <div class="input-group">
+                <input type="number" id="openStartingCash" class="form-control" placeholder="Ví dụ: 1000000" min="0" step="1000" value="1000000" required>
+                <span class="input-group-text fw-semibold">VNĐ</span>
+              </div>
+              <small class="text-muted">Nhập số tiền mặt có sẵn trong ngăn kéo trước khi bán hàng.</small>
+            </div>
+            <div class="mb-4">
+              <label class="form-label fw-semibold">Ghi chú mở ca</label>
+              <input type="text" id="openNote" class="form-control" placeholder="Ghi chú thêm nếu có (ví dụ: ca sáng, tiền lẻ 10k/20k...)">
+            </div>
+            <button type="submit" class="btn btn-success w-100 rounded-pill py-2 fw-semibold">
+              <i class="fa-solid fa-play me-2"></i> Xác Nhận Mở Ca Làm Việc
+            </button>
+          </form>
+        </div>
+      </div>
+    </div>
+  <% } else { %>
+    <!-- ĐANG CÓ CA LÀM VIỆC ĐANG HOẠT ĐỘNG -->
+    <div class="row g-4 mb-4">
+      <!-- Cột Trái: Thông Tin Ca & Thẻ Doanh Thu Realtime -->
+      <div class="col-lg-7">
+        <div class="custom-card p-4 border-0 shadow-sm h-100">
+          <div class="d-flex justify-content-between align-items-center mb-3 pb-2 border-bottom">
+            <div>
+              <span class="badge bg-success-subtle text-success border border-success px-3 py-1 rounded-pill mb-1">
+                <i class="fa-solid fa-circle-dot me-1"></i> CA ĐANG HOẠT ĐỘNG
+              </span>
+              <h4 class="fw-bold mb-0">Ca #<%= activeShift.shiftCode %></h4>
+            </div>
+            <div class="text-end">
+              <small class="text-muted d-block">Thu ngân trực ca:</small>
+              <strong class="text-primary"><%= activeShift.cashier ? activeShift.cashier.fullName : 'N/A' %></strong>
+            </div>
+          </div>
+
+          <div class="small text-muted mb-3">
+            <i class="fa-regular fa-clock me-1"></i> Mở ca lúc: <strong><%= new Date(activeShift.startTime).toLocaleString('vi-VN') %></strong>
+            <% if (activeShift.note) { %>
+              • Ghi chú: <em><%= activeShift.note %></em>
+            <% } %>
+          </div>
+
+          <!-- Các Thẻ Doanh Thu & Tiền Mặt Realtime -->
+          <div class="row g-3 mb-4">
+            <div class="col-sm-6">
+              <div class="p-3 bg-light rounded-3 border">
+                <div class="text-muted small">Tiền mặt ban đầu trong két</div>
+                <div class="fw-bold fs-5 text-dark" id="displayStartingCash">
+                  <%= activeShift.startingCash.toLocaleString('vi-VN') %>đ
+                </div>
+              </div>
+            </div>
+            <div class="col-sm-6">
+              <div class="p-3 bg-success-subtle rounded-3 border border-success-subtle">
+                <div class="text-success small fw-semibold">Tiền mặt thu được trong ca</div>
+                <div class="fw-bold fs-5 text-success" id="displaySystemCash">
+                  +<%= (stats ? stats.systemCash : 0).toLocaleString('vi-VN') %>đ
+                </div>
+              </div>
+            </div>
+            <div class="col-sm-4">
+              <div class="p-3 bg-primary-subtle rounded-3 border border-primary-subtle">
+                <div class="text-primary small fw-semibold">Thu Chuyển khoản (QR)</div>
+                <div class="fw-bold fs-6 text-primary">
+                  <%= (stats ? stats.systemTransfer : 0).toLocaleString('vi-VN') %>đ
+                </div>
+              </div>
+            </div>
+            <div class="col-sm-4">
+              <div class="p-3 bg-info-subtle rounded-3 border border-info-subtle">
+                <div class="text-info-emphasis small fw-semibold">Thu Thẻ / POS</div>
+                <div class="fw-bold fs-6 text-info-emphasis">
+                  <%= (stats ? stats.systemCard : 0).toLocaleString('vi-VN') %>đ
+                </div>
+              </div>
+            </div>
+            <div class="col-sm-4">
+              <div class="p-3 bg-warning-subtle rounded-3 border border-warning-subtle">
+                <div class="text-warning-emphasis small fw-semibold">Tổng đơn đã thanh toán</div>
+                <div class="fw-bold fs-6 text-warning-emphasis">
+                  <%= stats ? stats.orderCount : 0 %> đơn
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Tổng doanh thu ca -->
+          <div class="p-3 bg-dark text-white rounded-3 d-flex justify-content-between align-items-center">
+            <div>
+              <div class="text-white-50 small">TỔNG DOANH THU CA BÁN HÀNG:</div>
+              <div class="small text-white-50">(Tiền mặt + Chuyển khoản + Thẻ)</div>
+            </div>
+            <div class="fw-bold fs-3 text-warning">
+              <%= (stats ? stats.systemTotal : 0).toLocaleString('vi-VN') %>đ
+            </div>
+          </div>
+
+          <!-- Danh sách đơn hàng trong ca -->
+          <div class="mt-4">
+            <h6 class="fw-bold mb-2"><i class="fa-solid fa-list-check me-2 text-primary"></i> Đơn hàng đã thu trong ca này:</h6>
+            <div class="table-responsive" style="max-height: 220px; overflow-y: auto;">
+              <table class="table table-sm table-hover align-middle mb-0">
+                <thead class="table-light sticky-top">
+                  <tr>
+                    <th>Mã đơn</th>
+                    <th>Bàn</th>
+                    <th>Thời gian</th>
+                    <th>Phương thức</th>
+                    <th class="text-end">Số tiền</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <% if (stats && stats.orders && stats.orders.length > 0) { %>
+                    <% stats.orders.forEach(o => { %>
+                      <tr>
+                        <td class="fw-bold">#<%= o.orderCode %></td>
+                        <td><%= o.table ? o.table.tableNumber : 'N/A' %></td>
+                        <td class="small text-muted"><%= new Date(o.paidAt || o.createdAt).toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' }) %></td>
+                        <td>
+                          <span class="badge text-uppercase <%= o.paymentMethod === 'cash' ? 'bg-success' : (o.paymentMethod === 'transfer' ? 'bg-primary' : 'bg-info') %>">
+                            <%= o.paymentMethod %>
+                          </span>
+                        </td>
+                        <td class="text-end fw-semibold text-primary"><%= o.totalAmount.toLocaleString('vi-VN') %>đ</td>
+                      </tr>
+                    <% }) %>
+                  <% } else { %>
+                    <tr>
+                      <td colspan="5" class="text-center text-muted py-3 small">Chưa có đơn hàng nào thanh toán trong ca này.</td>
+                    </tr>
+                  <% } %>
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Cột Phải: Bảng Kiểm Quỹ & Chốt Ca (Z-Report) -->
+      <div class="col-lg-5">
+        <div class="custom-card p-4 border-0 shadow-sm h-100 border-top border-4 border-success">
+          <h5 class="fw-bold mb-3 text-success">
+            <i class="fa-solid fa-file-invoice-dollar me-2"></i> Kiểm Kê Quỹ & Xuất Z-Report
+          </h5>
+          <p class="text-muted small mb-3">
+            Thu ngân đếm toàn bộ tiền mặt thực tế trong két, đối chiếu với số liệu hệ thống tính toán để phát hiện chênh lệch trước khi bàn giao.
+          </p>
+
+          <!-- Tiền mặt kỳ vọng hệ thống -->
+          <div class="p-3 bg-light rounded-3 mb-3 border">
+            <div class="d-flex justify-content-between mb-1">
+              <span class="text-muted small">Tiền đầu ca:</span>
+              <span class="fw-semibold"><%= activeShift.startingCash.toLocaleString('vi-VN') %>đ</span>
+            </div>
+            <div class="d-flex justify-content-between mb-2">
+              <span class="text-muted small">Tiền mặt thu trong ca:</span>
+              <span class="fw-semibold text-success">+<%= (stats ? stats.systemCash : 0).toLocaleString('vi-VN') %>đ</span>
+            </div>
+            <hr class="my-1">
+            <div class="d-flex justify-content-between align-items-center pt-1">
+              <span class="fw-bold">Tiền mặt kỳ vọng trong két:</span>
+              <span class="fw-bold fs-5 text-primary" id="valExpectedCash">
+                <%= (activeShift.startingCash + (stats ? stats.systemCash : 0)).toLocaleString('vi-VN') %>đ
+              </span>
+            </div>
+          </div>
+
+          <form id="closeShiftForm" onsubmit="handleCloseShift(event)">
+            <input type="hidden" id="shiftId" value="<%= activeShift._id %>">
+            <input type="hidden" id="rawExpectedCash" value="<%= activeShift.startingCash + (stats ? stats.systemCash : 0) %>">
+
+            <!-- Nhập tiền mặt thực tế -->
+            <div class="mb-3">
+              <label class="form-label fw-bold">
+                Tiền mặt thực tế kiểm kê trong két <span class="text-danger">*</span>
+              </label>
+              <div class="input-group input-group-lg">
+                <input type="number" id="closeActualCash" class="form-control fw-bold text-success text-end"
+                       placeholder="Nhập số tiền đếm được" min="0" step="1000"
+                       oninput="calculateDifferenceRealtime()" required>
+                <span class="input-group-text fw-bold">VNĐ</span>
+              </div>
+              <small class="text-muted">Đếm tất cả tiền mặt hiện có trong két và nhập vào đây.</small>
+            </div>
+
+            <!-- Khung Chênh Lệch Realtime -->
+            <div id="diffBox" class="p-3 rounded-3 mb-3 border" style="display: none;">
+              <div class="d-flex justify-content-between align-items-center">
+                <span class="fw-bold" id="diffTitle">Chênh lệch:</span>
+                <span class="fw-bold fs-5" id="diffAmount">0đ</span>
+              </div>
+              <div class="small mt-1" id="diffExplanation"></div>
+            </div>
+
+            <!-- Nhân viên nhận bàn giao -->
+            <div class="mb-3">
+              <label class="form-label fw-semibold">Người nhận bàn giao ca tiếp theo <span class="text-danger">*</span></label>
+              <input type="text" id="closeHandoverTo" class="form-control" list="staffList" placeholder="Tên thu ngân ca sau nhận bàn giao..." required>
+              <datalist id="staffList">
+                <% if (allStaff && allStaff.length > 0) { %>
+                  <% allStaff.forEach(s => { %>
+                    <option value="<%= s.fullName %>">
+                  <% }) %>
+                <% } %>
+              </datalist>
+            </div>
+
+            <!-- Ghi chú giải trình -->
+            <div class="mb-4">
+              <label class="form-label fw-semibold">Ghi chú / Giải trình chênh lệch (nếu có)</label>
+              <textarea id="closeNote" class="form-control" rows="2" placeholder="Ví dụ: Thiếu 20k do nhầm tiền thối cho khách bàn 04..."></textarea>
+            </div>
+
+            <button type="submit" class="btn btn-danger w-100 rounded-pill py-2 fw-semibold">
+              <i class="fa-solid fa-flag-checkered me-2"></i> Chốt Ca & Xuất Báo Cáo Z-Report
+            </button>
+          </form>
+        </div>
+      </div>
+    </div>
+  <% } %>
+
+  <!-- BẢNG LỊCH SỬ CÁC CA LÀM VIỆC ĐÃ ĐÓNG (Z-REPORTS) -->
+  <div class="custom-card p-4 border-0 shadow-sm mt-4">
+    <div class="d-flex justify-content-between align-items-center mb-3 pb-2 border-bottom">
+      <h5 class="fw-bold mb-0">
+        <i class="fa-solid fa-clock-rotate-left text-primary me-2"></i> Lịch Sử Giao Ca & Báo Cáo Z-Report
+      </h5>
+      <span class="text-muted small">Lưu trữ các biên bản kết ca để đối soát kế toán</span>
+    </div>
+
+    <div class="table-responsive">
+      <table class="table table-hover align-middle mb-0">
+        <thead class="table-light">
+          <tr>
+            <th>Mã ca</th>
+            <th>Thu ngân trực</th>
+            <th>Thời gian bắt đầu</th>
+            <th>Thời gian kết ca</th>
+            <th>Doanh thu ca</th>
+            <th>Tiền két thực tế</th>
+            <th>Chênh lệch</th>
+            <th>Người nhận</th>
+            <th class="text-center">Thao tác</th>
+          </tr>
+        </thead>
+        <tbody>
+          <% if (historyData && historyData.shifts && historyData.shifts.length > 0) { %>
+            <% historyData.shifts.forEach(s => { %>
+              <tr>
+                <td class="fw-bold">
+                  <span class="badge bg-secondary-subtle text-dark border">
+                    <%= s.shiftCode %>
+                  </span>
+                </td>
+                <td><%= s.cashier ? s.cashier.fullName : 'N/A' %></td>
+                <td class="small text-muted"><%= new Date(s.startTime).toLocaleString('vi-VN') %></td>
+                <td class="small text-muted">
+                  <%= s.endTime ? new Date(s.endTime).toLocaleString('vi-VN') : '<span class="badge bg-success">Đang mở</span>' %>
+                </td>
+                <td class="fw-bold text-dark"><%= (s.systemTotal || 0).toLocaleString('vi-VN') %>đ</td>
+                <td class="fw-bold text-success"><%= (s.actualCash || 0).toLocaleString('vi-VN') %>đ</td>
+                <td>
+                  <% if (s.status === 'open') { %>
+                    <span class="badge bg-secondary">Chưa chốt</span>
+                  <% } else if (s.difference === 0) { %>
+                    <span class="badge bg-success"><i class="fa-solid fa-check me-1"></i> Khớp tiền</span>
+                  <% } else if (s.difference < 0) { %>
+                    <span class="badge bg-danger"><i class="fa-solid fa-triangle-exclamation me-1"></i> Thiếu <%= Math.abs(s.difference).toLocaleString('vi-VN') %>đ</span>
+                  <% } else { %>
+                    <span class="badge bg-info text-dark"><i class="fa-solid fa-plus me-1"></i> Dư <%= s.difference.toLocaleString('vi-VN') %>đ</span>
+                  <% } %>
+                </td>
+                <td><%= s.handoverTo || '-' %></td>
+                <td class="text-center">
+                  <% if (s.status === 'closed') { %>
+                    <button class="btn btn-outline-primary btn-sm rounded-pill px-3" onclick="viewZReportModal('<%= s._id %>')">
+                      <i class="fa-solid fa-file-invoice me-1"></i> Xem Z-Report
+                    </button>
+                  <% } else { %>
+                    <span class="text-muted small">Đang trực ca</span>
+                  <% } %>
+                </td>
+              </tr>
+            <% }) %>
+          <% } else { %>
+            <tr>
+              <td colspan="9" class="text-center text-muted py-4">Chưa có dữ liệu ca làm việc nào trong lịch sử.</td>
+            </tr>
+          <% } %>
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL XEM VÀ IN BÁO CÁO KẾT CA (Z-REPORT) -->
+<div class="modal fade" id="zReportModal" tabindex="-1">
+  <div class="modal-dialog modal-dialog-centered modal-dialog-scrollable">
+    <div class="modal-content border-0 shadow-lg">
+      <div class="modal-header bg-light">
+        <h5 class="modal-title fw-bold"><i class="fa-solid fa-receipt text-primary me-2"></i> Báo Cáo Kết Ca (Z-Report)</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body p-4" id="zReportPrintArea">
+        <!-- Rendered by JS -->
+      </div>
+      <div class="modal-footer bg-light">
+        <button type="button" class="btn btn-secondary rounded-pill px-3" data-bs-dismiss="modal">Đóng</button>
+        <button type="button" class="btn btn-primary rounded-pill px-4" onclick="printZReport()">
+          <i class="fa-solid fa-print me-1"></i> In Phiếu Z-Report
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+// Xử lý mở ca mới
+async function handleOpenShift(e) {
+  e.preventDefault();
+  const startingCash = document.getElementById('openStartingCash').value;
+  const note = document.getElementById('openNote').value;
+
+  try {
+    const res = await fetch('/api/staff/shifts/open', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ startingCash: Number(startingCash) || 0, note })
+    });
+    const result = await res.json();
+    if (!res.ok) throw new Error(result.message || 'Lỗi khi mở ca');
+
+    await Swal.fire({
+      icon: 'success',
+      title: 'Mở ca thành công!',
+      text: `Mã ca: ${result.data.shiftCode}`,
+      timer: 1500,
+      showConfirmButton: false
+    });
+    window.location.reload();
+  } catch (err) {
+    Swal.fire({ icon: 'error', title: 'Lỗi', text: err.message });
+  }
+}
+
+// Tính chênh lệch tiền mặt realtime khi thu ngân gõ số tiền trong két
+function calculateDifferenceRealtime() {
+  const actualInput = document.getElementById('closeActualCash');
+  const expectedRaw = Number(document.getElementById('rawExpectedCash').value) || 0;
+  const diffBox = document.getElementById('diffBox');
+  const diffTitle = document.getElementById('diffTitle');
+  const diffAmount = document.getElementById('diffAmount');
+  const diffExplanation = document.getElementById('diffExplanation');
+
+  if (!actualInput.value && actualInput.value !== '0') {
+    diffBox.style.display = 'none';
+    return;
+  }
+
+  const actualCash = Number(actualInput.value) || 0;
+  const diff = actualCash - expectedRaw;
+
+  diffBox.style.display = 'block';
+
+  if (diff === 0) {
+    diffBox.className = 'p-3 rounded-3 mb-3 border bg-success-subtle border-success text-success';
+    diffTitle.textContent = 'Trạng thái kiểm quỹ:';
+    diffAmount.textContent = 'Khớp 100% (0đ)';
+    diffExplanation.textContent = 'Tuyệt vời! Tiền mặt thực tế hoàn toàn trùng khớp với hệ thống.';
+  } else if (diff < 0) {
+    diffBox.className = 'p-3 rounded-3 mb-3 border bg-danger-subtle border-danger text-danger';
+    diffTitle.textContent = 'Trạng thái kiểm quỹ: THIẾU HỤT';
+    diffAmount.textContent = `-${Math.abs(diff).toLocaleString('vi-VN')}đ`;
+    diffExplanation.textContent = 'Cảnh báo: Tiền mặt trong két ít hơn so với số liệu bán hàng! Vui lòng kiểm tra lại tiền lẻ hoặc ghi rõ lý do vào ô giải trình.';
+  } else {
+    diffBox.className = 'p-3 rounded-3 mb-3 border bg-info-subtle border-info text-info-emphasis';
+    diffTitle.textContent = 'Trạng thái kiểm quỹ: THỪA TIỀN';
+    diffAmount.textContent = `+${diff.toLocaleString('vi-VN')}đ`;
+    diffExplanation.textContent = 'Lưu ý: Tiền mặt trong két nhiều hơn tính toán của hệ thống. Vui lòng ghi chú lý do bàn giao.';
+  }
+}
+
+// Xử lý chốt ca & xuất Z-Report
+async function handleCloseShift(e) {
+  e.preventDefault();
+  const shiftId = document.getElementById('shiftId').value;
+  const actualCash = document.getElementById('closeActualCash').value;
+  const handoverTo = document.getElementById('closeHandoverTo').value;
+  const note = document.getElementById('closeNote').value;
+
+  const confirmRes = await Swal.fire({
+    title: 'Xác Nhận Chốt Ca?',
+    text: 'Sau khi chốt ca, toàn bộ số liệu doanh thu và chênh lệch tiền mặt sẽ được lưu vào biên bản Z-Report vĩnh viễn.',
+    icon: 'warning',
+    showCancelButton: true,
+    confirmButtonColor: '#d33',
+    confirmButtonText: 'Đồng ý kết ca',
+    cancelButtonText: 'Hủy'
+  });
+
+  if (!confirmRes.isConfirmed) return;
+
+  try {
+    const res = await fetch('/api/staff/shifts/close', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        shiftId,
+        actualCash: Number(actualCash) || 0,
+        handoverTo,
+        note
+      })
+    });
+    const result = await res.json();
+    if (!res.ok) throw new Error(result.message || 'Lỗi khi chốt ca');
+
+    await Swal.fire({
+      icon: 'success',
+      title: 'Đã chốt ca thành công!',
+      text: 'Biên bản Z-Report đã được tạo.',
+      timer: 1500,
+      showConfirmButton: false
+    });
+
+    // Mở modal xem Z-Report ngay
+    viewZReportModal(result.data.shift._id);
+  } catch (err) {
+    Swal.fire({ icon: 'error', title: 'Lỗi', text: err.message });
+  }
+}
+
+// Xem chi tiết Z-Report trong Modal
+async function viewZReportModal(shiftId) {
+  try {
+    const res = await fetch(`/api/staff/shifts/${shiftId}/z-report`);
+    const result = await res.json();
+    if (!res.ok) throw new Error(result.message || 'Không thể tải Z-Report');
+
+    const s = result.data.shift;
+    const stats = result.data.stats;
+
+    let diffBadge = '';
+    if (s.difference === 0) {
+      diffBadge = '<span class="text-success fw-bold">KHỚP TIỀN (0đ)</span>';
+    } else if (s.difference < 0) {
+      diffBadge = `<span class="text-danger fw-bold">THIẾU: -${Math.abs(s.difference).toLocaleString('vi-VN')}đ</span>`;
+    } else {
+      diffBadge = `<span class="text-info fw-bold">THỪA: +${s.difference.toLocaleString('vi-VN')}đ</span>`;
+    }
+
+    const html = `
+      <div class="text-center pb-3 border-bottom">
+        <h4 class="fw-bold mb-1">COFFEE & TEA HOUSE</h4>
+        <div class="fw-bold fs-5 text-uppercase text-primary">PHIẾU BÁO CÁO KẾT CA (Z-REPORT)</div>
+        <div class="small text-muted">Mã ca: <strong>${s.shiftCode}</strong></div>
+      </div>
+
+      <div class="py-3 border-bottom small">
+        <div class="d-flex justify-content-between mb-1">
+          <span class="text-muted">Thu ngân trực ca:</span>
+          <strong>${s.cashier ? s.cashier.fullName : 'N/A'}</strong>
+        </div>
+        <div class="d-flex justify-content-between mb-1">
+          <span class="text-muted">Người nhận bàn giao:</span>
+          <strong>${s.handoverTo || 'Chưa bàn giao'}</strong>
+        </div>
+        <div class="d-flex justify-content-between mb-1">
+          <span class="text-muted">Giờ mở ca:</span>
+          <span>${new Date(s.startTime).toLocaleString('vi-VN')}</span>
+        </div>
+        <div class="d-flex justify-content-between">
+          <span class="text-muted">Giờ chốt ca:</span>
+          <span>${s.endTime ? new Date(s.endTime).toLocaleString('vi-VN') : 'Chưa chốt'}</span>
+        </div>
+      </div>
+
+      <div class="py-3 border-bottom">
+        <h6 class="fw-bold mb-2">I. DOANH THU BÁN HÀNG THEO HỆ THỐNG</h6>
+        <div class="d-flex justify-content-between mb-1 small">
+          <span>Tiền mặt (Cash):</span>
+          <span class="fw-semibold">${(s.systemCash || 0).toLocaleString('vi-VN')}đ</span>
+        </div>
+        <div class="d-flex justify-content-between mb-1 small">
+          <span>Chuyển khoản (QR / Transfer):</span>
+          <span class="fw-semibold">${(s.systemTransfer || 0).toLocaleString('vi-VN')}đ</span>
+        </div>
+        <div class="d-flex justify-content-between mb-2 small">
+          <span>Thẻ ngân hàng (POS):</span>
+          <span class="fw-semibold">${(s.systemCard || 0).toLocaleString('vi-VN')}đ</span>
+        </div>
+        <div class="d-flex justify-content-between mb-1 p-2 bg-light rounded fw-bold">
+          <span>TỔNG DOANH THU:</span>
+          <span class="text-primary">${(s.systemTotal || 0).toLocaleString('vi-VN')}đ</span>
+        </div>
+        <div class="small text-muted text-end">Tổng số hóa đơn: ${s.orderCount || 0} đơn</div>
+      </div>
+
+      <div class="py-3 border-bottom">
+        <h6 class="fw-bold mb-2">II. ĐỐI SOÁT TIỀN MẶT TRONG KÉT</h6>
+        <div class="d-flex justify-content-between mb-1 small">
+          <span>Tiền mặt đầu ca:</span>
+          <span>${(s.startingCash || 0).toLocaleString('vi-VN')}đ</span>
+        </div>
+        <div class="d-flex justify-content-between mb-1 small">
+          <span>+ Tiền mặt thu trong ca:</span>
+          <span class="text-success">+${(s.systemCash || 0).toLocaleString('vi-VN')}đ</span>
+        </div>
+        <div class="d-flex justify-content-between mb-2 small fw-bold">
+          <span>= Tiền mặt kỳ vọng hệ thống:</span>
+          <span>${(s.expectedCash || 0).toLocaleString('vi-VN')}đ</span>
+        </div>
+        <div class="d-flex justify-content-between mb-2 p-2 bg-light rounded fw-bold">
+          <span>TIỀN MẶT THỰC TẾ KIỂM ĐẾM:</span>
+          <span class="text-success fs-6">${(s.actualCash || 0).toLocaleString('vi-VN')}đ</span>
+        </div>
+        <div class="d-flex justify-content-between align-items-center p-2 rounded bg-light border">
+          <span class="fw-bold">CHÊNH LỆCH:</span>
+          ${diffBadge}
+        </div>
+        ${s.note ? `<div class="small mt-2 p-2 bg-light rounded fst-italic">Ghi chú giải trình: ${s.note}</div>` : ''}
+      </div>
+
+      <div class="row pt-4 text-center small">
+        <div class="col-6">
+          <strong>Người Bàn Giao</strong><br>
+          <span class="text-muted fst-italic">(Ký & ghi rõ họ tên)</span>
+          <div style="height: 60px;"></div>
+          <strong>${s.cashier ? s.cashier.fullName : ''}</strong>
+        </div>
+        <div class="col-6">
+          <strong>Người Nhận Bàn Giao</strong><br>
+          <span class="text-muted fst-italic">(Ký & ghi rõ họ tên)</span>
+          <div style="height: 60px;"></div>
+          <strong>${s.handoverTo || ''}</strong>
+        </div>
+      </div>
+    `;
+
+    document.getElementById('zReportPrintArea').innerHTML = html;
+    new bootstrap.Modal(document.getElementById('zReportModal')).show();
+  } catch (err) {
+    Swal.fire({ icon: 'error', title: 'Lỗi', text: err.message });
+  }
+}
+
+// In phiếu Z-Report
+function printZReport() {
+  const content = document.getElementById('zReportPrintArea').innerHTML;
+  const printWindow = window.open('', '_blank', 'width=650,height=800');
+  printWindow.document.write(`
+    <!DOCTYPE html>
+    <html>
+    <head>
+      <title>In Báo Cáo Kết Ca (Z-Report)</title>
+      <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+      <style>
+        body { font-family: 'Inter', sans-serif; padding: 20px; font-size: 13px; }
+        @media print {
+          .no-print { display: none; }
+        }
+      </style>
+    </head>
+    <body onload="window.print(); window.close();">
+      ${content}
+    </body>
+    </html>
+  `);
+  printWindow.document.close();
+}
+</script>

@@ -1,0 +1,264 @@
+<div class="container py-4">
+  <!-- Top Navigation & Code -->
+  <div class="d-flex flex-wrap justify-content-between align-items-center mb-4 pb-3 border-bottom">
+    <div>
+      <a href="/reservation" class="text-decoration-none text-muted small">
+        <i class="fa-solid fa-arrow-left me-1"></i> Đặt bàn khác
+      </a>
+      <h3 class="fw-bold mt-1 mb-0">
+        <i class="fa-solid fa-receipt text-primary me-2"></i> Chi Tiết Đặt Bàn #<%= reservation.reservationCode %>
+      </h3>
+    </div>
+
+    <div class="mt-2 mt-md-0 d-flex gap-2">
+      <% if (reservation.status === 'pending' || reservation.status === 'confirmed') { %>
+        <button class="btn btn-outline-danger btn-sm rounded-pill px-3" onclick="cancelMyReservation('<%= reservation._id %>')">
+          <i class="fa-solid fa-ban me-1"></i> Hủy Đặt Bàn
+        </button>
+      <% } %>
+      <button class="btn btn-outline-primary btn-sm rounded-pill px-3" onclick="window.location.reload()">
+        <i class="fa-solid fa-arrows-rotate me-1"></i> Làm Mới
+      </button>
+    </div>
+  </div>
+
+  <div class="row g-4">
+    <!-- Cột Trái: Trạng thái & Thông tin chính -->
+    <div class="col-lg-7">
+      <div class="card border-0 shadow-sm rounded-4 p-4 mb-4">
+        <div class="d-flex justify-content-between align-items-center mb-4">
+          <span class="text-muted fw-semibold">Trạng Thái Đặt Chỗ:</span>
+          <div>
+            <% if (reservation.status === 'pending') { %>
+              <span class="badge bg-warning-subtle text-warning border border-warning px-3 py-2 rounded-pill fs-6">
+                <i class="fa-solid fa-clock me-1"></i> Chờ Xác Nhận
+              </span>
+            <% } else if (reservation.status === 'confirmed') { %>
+              <span class="badge bg-primary-subtle text-primary border border-primary px-3 py-2 rounded-pill fs-6">
+                <i class="fa-solid fa-circle-check me-1"></i> Đã Giữ Chỗ Thành Công
+              </span>
+            <% } else if (reservation.status === 'arrived') { %>
+              <span class="badge bg-success-subtle text-success border border-success px-3 py-2 rounded-pill fs-6">
+                <i class="fa-solid fa-user-check me-1"></i> Khách Đã Nhận Bàn
+              </span>
+            <% } else if (reservation.status === 'no_show') { %>
+              <span class="badge bg-danger-subtle text-danger border border-danger px-3 py-2 rounded-pill fs-6">
+                <i class="fa-solid fa-user-xmark me-1"></i> Tự Động Hủy (Quá 15 Phút)
+              </span>
+            <% } else { %>
+              <span class="badge bg-secondary-subtle text-secondary border border-secondary px-3 py-2 rounded-pill fs-6">
+                <i class="fa-solid fa-ban me-1"></i> Đã Hủy
+              </span>
+            <% } %>
+          </div>
+        </div>
+
+        <% if (reservation.cancellationReason) { %>
+          <div class="alert alert-danger rounded-3 mb-4">
+            <i class="fa-solid fa-circle-exclamation me-1"></i>
+            <strong>Lý do hủy:</strong> <%= reservation.cancellationReason %>
+          </div>
+        <% } %>
+
+        <!-- Thông tin chi tiết -->
+        <h5 class="fw-bold mb-3 pb-2 border-bottom">
+          <i class="fa-solid fa-circle-info text-primary me-2"></i> Thông Tin Khách & Thời Gian
+        </h5>
+
+        <div class="row g-3">
+          <div class="col-sm-6">
+            <label class="text-muted small d-block">Họ và tên</label>
+            <strong class="fs-6"><%= reservation.customerName %></strong>
+          </div>
+          <div class="col-sm-6">
+            <label class="text-muted small d-block">Số điện thoại</label>
+            <strong class="fs-6"><%= reservation.phone %></strong>
+          </div>
+          <div class="col-sm-6">
+            <label class="text-muted small d-block">Ngày đến</label>
+            <strong class="fs-6"><i class="fa-solid fa-calendar me-1 text-primary"></i><%= reservation.reservationDate %></strong>
+          </div>
+          <div class="col-sm-6">
+            <label class="text-muted small d-block">Giờ hẹn</label>
+            <strong class="fs-6 text-danger"><i class="fa-solid fa-clock me-1"></i><%= reservation.reservationTime %></strong>
+          </div>
+          <div class="col-sm-6">
+            <label class="text-muted small d-block">Số lượng khách</label>
+            <strong><%= reservation.guestCount %> khách (<%= reservation.adultCount %> người lớn, <%= reservation.childrenCount %> trẻ em)</strong>
+          </div>
+          <div class="col-sm-6">
+            <label class="text-muted small d-block">Vị trí yêu cầu</label>
+            <span class="badge bg-info-subtle text-info-emphasis border px-2 py-1">
+              <%= locationLabels[reservation.locationPreference] || reservation.locationPreference %>
+            </span>
+          </div>
+          <div class="col-sm-6">
+            <label class="text-muted small d-block">Bàn được xếp</label>
+            <% if (reservation.table) { %>
+              <span class="badge bg-success-subtle text-success border border-success px-3 py-1 fs-6">
+                <i class="fa-solid fa-chair me-1"></i><%= reservation.table.tableNumber %>
+              </span>
+            <% } else { %>
+              <span class="text-muted fst-italic">Quán sẽ xếp bàn phù hợp khi bạn đến</span>
+            <% } %>
+          </div>
+          <div class="col-sm-6">
+            <label class="text-muted small d-block">Ghi chú của quý khách</label>
+            <span class="text-muted"><%= reservation.notes || 'Không có ghi chú' %></span>
+          </div>
+        </div>
+
+        <!-- Box Quy định tự động hủy sau 15 phút trễ -->
+        <div class="mt-4 p-3 bg-light rounded-3 border">
+          <div class="d-flex align-items-center gap-2">
+            <i class="fa-solid fa-stopwatch text-danger fs-5"></i>
+            <div>
+              <strong class="text-danger small d-block">Chính sách hủy tự động nếu trễ:</strong>
+              <span class="small text-muted">
+                Nếu quá <strong>15 phút</strong> so với giờ hẹn (<%= reservation.reservationTime %>) mà quý khách chưa có mặt, hệ thống sẽ tự động hủy giữ chỗ để nhường bàn cho khách vãng lai.
+              </span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Cột Phải: Thông tin Đặt Cọc (Nếu có) -->
+    <div class="col-lg-5">
+      <div class="card border-0 shadow-sm rounded-4 p-4">
+        <h5 class="fw-bold mb-3 pb-2 border-bottom">
+          <i class="fa-solid fa-credit-card text-primary me-2"></i> Tình Trạng Đặt Cọc
+        </h5>
+
+        <% if (reservation.depositRequired) { %>
+          <% if (reservation.depositStatus === 'paid') { %>
+            <div class="p-3 rounded-3 bg-success-subtle border border-success text-success-emphasis text-center mb-3">
+              <i class="fa-solid fa-circle-check fs-1 text-success mb-2"></i>
+              <h5 class="fw-bold mb-1">Đã Nhận Tiền Cọc 200.000đ</h5>
+              <p class="small mb-0">Hệ thống đã xác nhận đặt cọc thành công. Bàn của quý khách đã được đảm bảo giữ chỗ!</p>
+            </div>
+          <% } else { %>
+            <div class="p-3 rounded-3 bg-warning-subtle border border-warning text-warning-emphasis mb-3">
+              <div class="d-flex align-items-center gap-2 mb-2">
+                <i class="fa-solid fa-triangle-exclamation fs-4 text-warning"></i>
+                <h6 class="fw-bold mb-0">Yêu Cầu Chuyển Khoản Cọc Giữ Chỗ</h6>
+              </div>
+              <p class="small mb-2">
+                <%= reservation.depositReason || 'Đơn đặt bàn trên 10 khách hoặc vào khung giờ cao điểm.' %>
+              </p>
+              <div class="d-flex justify-content-between align-items-center py-2 px-3 bg-white rounded-3 border mb-3">
+                <span class="text-muted">Số tiền cọc:</span>
+                <span class="fs-4 fw-bold text-danger">200.000 VNĐ</span>
+              </div>
+
+              <!-- VietQR Code -->
+              <% if (vietQR) { %>
+                <div class="text-center p-3 bg-white rounded-3 border">
+                  <p class="small fw-semibold mb-2 text-dark">Quét mã VietQR bằng App Ngân Hàng bất kỳ:</p>
+                  <img src="<%= vietQR.qrUrl %>" alt="VietQR Deposit" class="img-fluid rounded-3 shadow-sm mb-3" style="max-width: 220px;">
+                  
+                  <div class="text-start small text-muted">
+                    <div class="d-flex justify-content-between border-bottom py-1">
+                      <span>Ngân hàng:</span>
+                      <strong class="text-dark">MB Bank</strong>
+                    </div>
+                    <div class="d-flex justify-content-between border-bottom py-1">
+                      <span>Số tài khoản:</span>
+                      <strong class="text-dark">0901000001</strong>
+                    </div>
+                    <div class="d-flex justify-content-between border-bottom py-1">
+                      <span>Tên người nhận:</span>
+                      <strong class="text-dark">COFFEE AND TEA HOUSE</strong>
+                    </div>
+                    <div class="d-flex justify-content-between py-1">
+                      <span>Nội dung CK:</span>
+                      <strong class="text-danger fw-bold"><%= vietQR.description %></strong>
+                    </div>
+                  </div>
+                </div>
+              <% } %>
+            </div>
+          <% } %>
+        <% } else { %>
+          <div class="p-4 rounded-3 bg-success-subtle text-success border border-success text-center">
+            <i class="fa-solid fa-circle-check fs-1 text-success mb-2"></i>
+            <h6 class="fw-bold mb-1">Miễn Phí Cọc Giữ Chỗ</h6>
+            <p class="small mb-0">Đơn đặt bàn của quý khách không cần đặt cọc trước. Quán rất hân hạnh được đón tiếp!</p>
+          </div>
+        <% } %>
+
+        <div class="mt-4 pt-3 border-top text-center">
+          <p class="small text-muted mb-2">Quý khách có thể lưu mã đặt bàn hoặc chụp màn hình trang này để xuất trình khi đến quán.</p>
+          <a href="/menu" class="btn btn-outline-primary btn-sm rounded-pill px-4">
+            <i class="fa-solid fa-utensils me-1"></i> Xem Thực Đơn Đồ Uống
+          </a>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script src="/socket.io/socket.io.js"></script>
+<script>
+// Lắng nghe cập nhật Realtime cho đặt bàn này
+try {
+  const socket = io();
+  socket.emit('join-reservation', '<%= reservation._id %>');
+
+  socket.on('reservation:status-changed', (data) => {
+    if (data.reservationId === '<%= reservation._id %>') {
+      Swal.fire({
+        icon: 'info',
+        title: 'Cập nhật trạng thái đặt bàn!',
+        text: 'Trạng thái đơn đặt bàn vừa được nhân viên cập nhật. Đang tải lại...',
+        timer: 1500,
+        showConfirmButton: false
+      }).then(() => {
+        window.location.reload();
+      });
+    }
+  });
+} catch (e) {
+  console.warn('Socket không khả dụng:', e);
+}
+
+async function cancelMyReservation(id) {
+  const result = await Swal.fire({
+    title: 'Xác nhận hủy đặt bàn?',
+    text: 'Bạn có chắc chắn muốn hủy yêu cầu giữ bàn này không?',
+    icon: 'warning',
+    input: 'text',
+    inputPlaceholder: 'Nhập lý do hủy (ví dụ: bận việc đột xuất)...',
+    showCancelButton: true,
+    confirmButtonText: 'Đồng ý hủy',
+    cancelButtonText: 'Quay lại',
+    confirmButtonColor: '#dc3545',
+    inputValidator: (val) => {
+      if (!val) return 'Vui lòng nhập lý do hủy';
+    }
+  });
+
+  if (!result.isConfirmed) return;
+
+  try {
+    const res = await fetch(`/api/customer/reservations/${id}/cancel`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ reason: result.value })
+    });
+    const data = await res.json();
+    if (!data.success) throw new Error(data.message);
+
+    await Swal.fire({
+      icon: 'success',
+      title: 'Đã hủy đặt bàn!',
+      text: 'Yêu cầu đặt bàn của bạn đã được hủy thành công.'
+    });
+
+    window.location.reload();
+  } catch (err) {
+    Swal.fire({ icon: 'error', title: 'Lỗi', text: err.message });
+  }
+}
+</script>
+

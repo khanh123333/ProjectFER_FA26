@@ -1,0 +1,660 @@
+<div class="container py-3">
+  <!-- Table Banner -->
+  <div class="d-flex flex-wrap justify-content-between align-items-center bg-white p-3 rounded-4 shadow-sm mb-4 border">
+    <div class="d-flex align-items-center gap-3">
+      <div class="p-2 rounded-circle bg-primary-subtle text-primary">
+        <i class="fa-solid fa-chair fs-4"></i>
+      </div>
+      <div>
+        <div class="small text-muted">Vị trí phục vụ của bạn</div>
+        <div class="fw-bold fs-5 text-dark">
+          <%= currentTable ? currentTable : 'Chưa chọn bàn' %>
+          <% if (!currentTable) { %>
+            <span class="badge bg-danger ms-2 font-monospace">Cần chọn bàn</span>
+          <% } %>
+        </div>
+      </div>
+    </div>
+    <div>
+      <button class="btn btn-outline-primary btn-sm rounded-pill px-3" data-bs-toggle="modal" data-bs-target="#switchTableModal">
+        <i class="fa-solid fa-arrow-right-arrow-left me-1"></i> Đổi Bàn Khác
+      </button>
+    </div>
+  </div>
+
+  <% if (activeOrder) { %>
+    <!-- Active Order Banner for Joined Customers -->
+    <div class="alert alert-warning border-warning shadow-sm rounded-4 mb-4 d-flex flex-wrap justify-content-between align-items-center gap-3">
+      <div class="d-flex align-items-center gap-3">
+        <div class="p-2 rounded-circle bg-warning bg-opacity-25 text-warning-emphasis fs-4">
+          <i class="fa-solid fa-users"></i>
+        </div>
+        <div>
+          <div class="fw-bold text-dark">
+            Bàn <%= currentTable %> đang có người ngồi (Đơn: <span class="badge bg-dark font-monospace">#<%= activeOrder.orderCode %></span>)
+          </div>
+          <div class="small text-muted">
+            Trạng thái: <span class="badge bg-warning text-dark text-uppercase"><%= activeOrder.status %></span> 
+            • Hiện có <strong><%= activeOrder.items.length %></strong> món đang được phục vụ
+          </div>
+        </div>
+      </div>
+      <div class="d-flex align-items-center gap-2">
+        <a href="/order-status/<%= activeOrder.orderCode %>" class="btn btn-outline-dark btn-sm rounded-pill px-3 fw-semibold">
+          <i class="fa-solid fa-receipt me-1"></i> Xem Đơn Hiện Tại
+        </a>
+      </div>
+    </div>
+  <% } %>
+
+  <!-- Search & Category Filters -->
+  <div class="mb-4">
+    <div class="row g-3 align-items-center mb-3">
+      <div class="col-md-6 col-lg-5">
+        <div class="input-group shadow-sm rounded-pill overflow-hidden border">
+          <span class="input-group-text bg-white border-0 ps-3"><i class="fa-solid fa-magnifying-glass text-muted"></i></span>
+          <input type="text" id="searchInput" class="form-control border-0 py-2" placeholder="Tìm kiếm trà sữa, cà phê, đồ ăn vặt...">
+        </div>
+      </div>
+    </div>
+
+    <!-- Category Pills -->
+    <div class="d-flex gap-2 overflow-x-auto pb-2" style="scrollbar-width: thin;">
+      <button class="category-pill active" onclick="filterCategory('all', this)">
+        <i class="fa-solid fa-border-all"></i> Tất Cả
+      </button>
+      <% categories.forEach(cat => { %>
+        <button class="category-pill" onclick="filterCategory('<%= cat._id %>', this)">
+          <%= cat.name %>
+        </button>
+      <% }) %>
+    </div>
+  </div>
+
+  <!-- Product Grid -->
+  <div class="row g-3" id="productGrid">
+    <% products.forEach(prod => { %>
+      <div class="col-6 col-md-4 col-lg-3 product-item" 
+           data-category="<%= prod.category ? prod.category._id : '' %>"
+           data-name="<%= prod.name.toLowerCase() %>"
+           data-desc="<%= (prod.description || '').toLowerCase() %>">
+        <div class="product-card">
+          <div class="product-img-wrapper">
+            <img src="<%= (prod.images && prod.images.length > 0) ? prod.images[0] : '/images/default-food.png' %>" 
+                 class="product-img" 
+                 alt="<%= prod.name %>">
+            <% if (prod.soldCount > 0) { %>
+              <div class="product-badge-sold">
+                <i class="fa-solid fa-fire text-warning me-1"></i> Đã bán <%= prod.soldCount %>
+              </div>
+            <% } %>
+            <% if (!prod.isAvailable) { %>
+              <div class="position-absolute top-0 start-0 w-100 h-100 d-flex align-items-center justify-content-center bg-dark bg-opacity-75 text-white fw-bold">
+                Tạm hết hàng
+              </div>
+            <% } %>
+          </div>
+
+          <div class="p-3 d-flex flex-column flex-grow-1 justify-content-between">
+            <div>
+              <h6 class="fw-bold mb-1 text-truncate" title="<%= prod.name %>"><%= prod.name %></h6>
+              <p class="text-muted small mb-2 text-truncate-2" style="display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; height: 38px; font-size: 0.8rem;">
+                <%= prod.description || 'Hương vị tươi ngon, hảo hạng.' %>
+              </p>
+            </div>
+
+            <div class="d-flex justify-content-between align-items-center mt-2 pt-2 border-top">
+              <span class="price-text"><%= prod.price.toLocaleString('vi-VN') %>đ</span>
+              <% if (prod.isAvailable) { %>
+                <button class="btn btn-sm btn-primary rounded-circle" style="width: 34px; height: 34px;" 
+                        onclick="openCustomizeModal(<%= JSON.stringify(prod) %>)">
+                  <i class="fa-solid fa-plus"></i>
+                </button>
+              <% } else { %>
+                <button class="btn btn-sm btn-secondary rounded-circle" style="width: 34px; height: 34px;" disabled>
+                  <i class="fa-solid fa-ban"></i>
+                </button>
+              <% } %>
+            </div>
+          </div>
+        </div>
+      </div>
+    <% }) %>
+  </div>
+</div>
+
+<!-- Floating Cart Button -->
+<button class="btn btn-primary floating-cart-btn" data-bs-toggle="offcanvas" data-bs-target="#cartOffcanvas">
+  <i class="fa-solid fa-bag-shopping me-2"></i> Giỏ Hàng
+  <span class="badge bg-danger rounded-pill ms-2 cart-badge-count" style="display: none;">0</span>
+</button>
+
+<!-- Offcanvas Giỏ Hàng -->
+<div class="offcanvas offcanvas-end shadow-lg" tabindex="-1" id="cartOffcanvas" style="width: 420px; max-width: 100vw;">
+  <div class="offcanvas-header border-bottom bg-light">
+    <h5 class="offcanvas-title fw-bold">
+      <i class="fa-solid fa-cart-shopping text-primary me-2"></i> Giỏ Hàng
+      <span class="badge bg-primary rounded-pill ms-1 cart-badge-count">0</span>
+    </h5>
+    <button type="button" class="btn-close" data-bs-dismiss="offcanvas"></button>
+  </div>
+
+  <div class="offcanvas-body d-flex flex-column justify-content-between p-3">
+    <!-- Items list -->
+    <div id="cartItemsList" class="overflow-y-auto mb-3" style="max-height: 50vh;">
+      <!-- Dynamic render by JS -->
+    </div>
+
+    <!-- Checkout info -->
+    <div class="border-top pt-3">
+      <!-- Customer Info Inputs -->
+      <div class="row g-2 mb-3">
+        <div class="col-6">
+          <input type="text" id="orderCustomerName" class="form-control form-control-sm" placeholder="Tên của bạn" value="<%= currentUser ? currentUser.fullName : '' %>">
+        </div>
+        <div class="col-6">
+          <input type="tel" id="orderCustomerPhone" class="form-control form-control-sm" placeholder="Số điện thoại" value="<%= currentUser ? currentUser.phone || '' : '' %>">
+        </div>
+        <div class="col-12">
+          <input type="text" id="orderGeneralNote" class="form-control form-control-sm" placeholder="Ghi chú chung cho đơn (nếu có)">
+        </div>
+      </div>
+
+      <!-- Price Breakdown -->
+      <div class="bg-light p-3 rounded-3 mb-3">
+        <div class="d-flex justify-content-between small text-muted mb-1">
+          <span>Tạm tính:</span>
+          <span id="subtotalText">0đ</span>
+        </div>
+        <div class="d-flex justify-content-between small text-success mb-1" id="discountRow" style="display: none;">
+          <span>Giảm giá:</span>
+          <span id="discountText">-0đ</span>
+        </div>
+        <div class="d-flex justify-content-between fw-bold fs-5 text-dark border-top pt-2 mt-1">
+          <span>Tổng cộng:</span>
+          <span id="totalText" class="text-primary">0đ</span>
+        </div>
+      </div>
+
+      <button class="btn btn-primary w-100 py-2 rounded-pill fw-bold" id="btnPlaceOrder" onclick="submitOrder()">
+        <i class="fa-solid fa-paper-plane me-1"></i> Xác Nhận Đặt Đơn
+      </button>
+    </div>
+  </div>
+</div>
+
+<!-- Modal Tùy Chọn Món Ăn -->
+<div class="modal fade" id="customizeModal" tabindex="-1">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content border-0 shadow-lg">
+      <div class="modal-header border-bottom">
+        <h5 class="modal-title fw-bold" id="modalProductName">Tùy Chọn Món</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body p-4">
+        <div class="d-flex gap-3 align-items-center mb-3 pb-3 border-bottom">
+          <img id="modalProductImg" src="" class="rounded-3" style="width: 70px; height: 70px; object-fit: cover;">
+          <div>
+            <div id="modalProductPrice" class="fw-bold fs-5 text-primary"></div>
+            <div id="modalProductDesc" class="text-muted small"></div>
+          </div>
+        </div>
+
+        <!-- Options Container -->
+        <div id="modalOptionsContainer"></div>
+
+        <!-- Note input -->
+        <div class="mt-3">
+          <label class="form-label small fw-semibold text-muted">Ghi chú cho món này</label>
+          <input type="text" id="modalItemNote" class="form-control form-control-sm" placeholder="VD: ít ngọt, nhiều đá, trân châu để riêng...">
+        </div>
+
+        <!-- Quantity -->
+        <div class="d-flex justify-content-between align-items-center mt-4 pt-3 border-top">
+          <span class="fw-semibold">Số lượng:</span>
+          <div class="d-flex align-items-center gap-2">
+            <button class="btn btn-outline-secondary btn-sm rounded-circle" style="width: 32px; height: 32px;" onclick="changeModalQty(-1)">
+              <i class="fa-solid fa-minus"></i>
+            </button>
+            <span id="modalQtyDisplay" class="fw-bold px-2">1</span>
+            <button class="btn btn-outline-secondary btn-sm rounded-circle" style="width: 32px; height: 32px;" onclick="changeModalQty(1)">
+              <i class="fa-solid fa-plus"></i>
+            </button>
+          </div>
+        </div>
+      </div>
+      <div class="modal-footer border-top bg-light">
+        <button type="button" class="btn btn-primary w-100 rounded-pill py-2 fw-semibold" id="btnAddToCart">
+          Thêm Vào Giỏ - <span id="modalTotalCalculated">0đ</span>
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Modal Đổi Bàn / Chọn Bàn -->
+<div class="modal fade" id="switchTableModal" tabindex="-1">
+  <div class="modal-dialog modal-dialog-centered modal-lg">
+    <div class="modal-content border-0 shadow-lg">
+      <div class="modal-header border-bottom bg-light">
+        <div>
+          <h5 class="modal-title fw-bold"><i class="fa-solid fa-couch text-primary me-2"></i> Chọn Bàn Phục Vụ</h5>
+          <span class="small text-muted">Chạm vào số bàn bạn đang ngồi để tiếp tục gọi món</span>
+        </div>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body p-4">
+        <div class="row g-3">
+          <% tables.forEach(t => { %>
+            <% const isEmpty = t.status === 'empty'; %>
+            <% const isSelected = t.tableNumber === currentTable; %>
+            <div class="col-6 col-sm-4 col-md-3">
+              <a href="/menu?table=<%= encodeURIComponent(t.tableNumber) %>" 
+                 class="table-pick-card <%= isEmpty ? 'table-is-empty' : 'table-is-occupied' %> p-3 h-100 position-relative <%= isSelected ? 'border-primary shadow' : '' %>">
+                <div>
+                  <div class="d-flex justify-content-between align-items-center mb-1">
+                    <span class="badge rounded-pill <%= isEmpty ? 'bg-success' : 'bg-danger' %>" style="font-size: 0.65rem;">
+                      <%= isEmpty ? 'Trống' : 'Có khách' %>
+                    </span>
+                    <span class="text-muted small" style="font-size: 0.75rem;"><i class="fa-solid fa-user-group me-1"></i><%= t.capacity %></span>
+                  </div>
+                  <div class="table-avatar-icon my-2" style="width: 44px; height: 44px; font-size: 1.25rem;">
+                    <i class="fa-solid fa-chair"></i>
+                  </div>
+                  <h6 class="fw-bold mb-0 text-dark"><%= t.tableNumber %></h6>
+                </div>
+                <div class="mt-2">
+                  <% if (isSelected) { %>
+                    <span class="badge bg-primary w-100 py-1 rounded-pill" style="font-size: 0.7rem;"><i class="fa-solid fa-check me-1"></i> Đang Chọn</span>
+                  <% } else { %>
+                    <span class="btn btn-sm <%= isEmpty ? 'btn-outline-success' : 'btn-outline-danger' %> w-100 py-0 rounded-pill" style="font-size: 0.72rem;">Chọn</span>
+                  <% } %>
+                </div>
+              </a>
+            </div>
+          <% }) %>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+const currentTableNumber = '<%= currentTable %>';
+const activeOrderId = '<%= activeOrder ? activeOrder._id : "" %>';
+const activeOrderCode = '<%= activeOrder ? activeOrder.orderCode : "" %>';
+let activeProduct = null;
+let modalQuantity = 1;
+let currentAppliedCoupon = null;
+
+// Khởi chạy khi load trang
+document.addEventListener('DOMContentLoaded', () => {
+  CartManager.updateCartBadge(currentTableNumber);
+  renderCartOffcanvas();
+
+  // Nếu người dùng vào menu mà chưa chọn bàn, tự động mở popup chọn bàn
+  if (!currentTableNumber) {
+    const tableModal = new bootstrap.Modal(document.getElementById('switchTableModal'));
+    tableModal.show();
+  }
+
+  // Search filter
+  document.getElementById('searchInput').addEventListener('input', (e) => {
+    const query = e.target.value.toLowerCase().trim();
+    const items = document.querySelectorAll('.product-item');
+    items.forEach((item) => {
+      const name = item.dataset.name;
+      const desc = item.dataset.desc;
+      if (name.includes(query) || desc.includes(query)) {
+        item.style.display = 'block';
+      } else {
+        item.style.display = 'none';
+      }
+    });
+  });
+});
+
+function filterCategory(catId, btn) {
+  document.querySelectorAll('.category-pill').forEach((p) => p.classList.remove('active'));
+  btn.classList.add('active');
+
+  const items = document.querySelectorAll('.product-item');
+  items.forEach((item) => {
+    if (catId === 'all' || item.dataset.category === catId) {
+      item.style.display = 'block';
+    } else {
+      item.style.display = 'none';
+    }
+  });
+}
+
+function openCustomizeModal(prod) {
+  activeProduct = prod;
+  modalQuantity = 1;
+  document.getElementById('modalProductName').textContent = prod.name;
+  document.getElementById('modalProductImg').src = (prod.images && prod.images.length > 0) ? prod.images[0] : '/images/default-food.png';
+  document.getElementById('modalProductPrice').textContent = formatCurrency(prod.price);
+  document.getElementById('modalProductDesc').textContent = prod.description || '';
+  document.getElementById('modalItemNote').value = '';
+  document.getElementById('modalQtyDisplay').textContent = '1';
+
+  // Render options
+  const container = document.getElementById('modalOptionsContainer');
+  container.innerHTML = '';
+
+  if (Array.isArray(prod.options) && prod.options.length > 0) {
+    prod.options.forEach((opt, optIndex) => {
+      const optDiv = document.createElement('div');
+      optDiv.className = 'mb-3 pb-2 border-bottom';
+      optDiv.innerHTML = `
+        <div class="fw-semibold small text-dark mb-2">
+          ${opt.name} ${opt.isRequired ? '<span class="text-danger">*</span>' : ''}
+        </div>
+        <div class="d-flex flex-wrap gap-2">
+          ${opt.choices.map((c, cIndex) => `
+            <div class="form-check form-check-inline border rounded-3 px-3 py-1 bg-white mb-1">
+              <input class="form-check-input option-input" 
+                     type="${opt.isMultiple ? 'checkbox' : 'radio'}" 
+                     name="opt_${optIndex}" 
+                     id="opt_${optIndex}_${cIndex}" 
+                     data-optname="${opt.name}"
+                     data-choice="${c.label}"
+                     data-extra="${c.extraPrice}"
+                     ${!opt.isMultiple && cIndex === 0 ? 'checked' : ''}
+                     onchange="updateModalCalculatedPrice()">
+              <label class="form-check-label small" for="opt_${optIndex}_${cIndex}">
+                ${c.label} ${c.extraPrice > 0 ? `(+${formatCurrency(c.extraPrice)})` : ''}
+              </label>
+            </div>
+          `).join('')}
+        </div>
+      `;
+      container.appendChild(optDiv);
+    });
+  }
+
+  updateModalCalculatedPrice();
+
+  document.getElementById('btnAddToCart').onclick = () => {
+    // Thu thập tùy chọn đã chọn
+    const selectedOptions = [];
+    const inputs = document.querySelectorAll('.option-input:checked');
+    inputs.forEach((inp) => {
+      selectedOptions.push({
+        optionName: inp.dataset.optname,
+        choiceLabel: inp.dataset.choice,
+        extraPrice: Number(inp.dataset.extra) || 0
+      });
+    });
+
+    const note = document.getElementById('modalItemNote').value.trim();
+
+    CartManager.addItem(currentTableNumber, {
+      product: prod._id,
+      name: prod.name,
+      price: prod.price,
+      image: (prod.images && prod.images.length > 0) ? prod.images[0] : '/images/default-food.png',
+      quantity: modalQuantity,
+      selectedOptions,
+      note
+    });
+
+    // Đóng modal và mở giỏ
+    bootstrap.Modal.getInstance(document.getElementById('customizeModal')).hide();
+    renderCartOffcanvas();
+
+    // Hiệu ứng thông báo nhỏ
+    const Toast = Swal.mixin({
+      toast: true,
+      position: 'top-end',
+      showConfirmButton: false,
+      timer: 1500
+    });
+    Toast.fire({ icon: 'success', title: `Đã thêm ${prod.name} vào giỏ!` });
+  };
+
+  new bootstrap.Modal(document.getElementById('customizeModal')).show();
+}
+
+function changeModalQty(delta) {
+  modalQuantity = Math.max(1, modalQuantity + delta);
+  document.getElementById('modalQtyDisplay').textContent = modalQuantity;
+  updateModalCalculatedPrice();
+}
+
+function updateModalCalculatedPrice() {
+  if (!activeProduct) return;
+  let extra = 0;
+  const inputs = document.querySelectorAll('.option-input:checked');
+  inputs.forEach((inp) => {
+    extra += Number(inp.dataset.extra) || 0;
+  });
+  const total = (activeProduct.price + extra) * modalQuantity;
+  document.getElementById('modalTotalCalculated').textContent = formatCurrency(total);
+}
+
+function renderCartOffcanvas() {
+  const cart = CartManager.getCart(currentTableNumber);
+  const container = document.getElementById('cartItemsList');
+
+  if (cart.length === 0) {
+    container.innerHTML = `
+      <div class="text-center py-5 text-muted">
+        <i class="fa-solid fa-cart-shopping fs-1 opacity-25 mb-2"></i>
+        <p class="mb-0">Giỏ hàng của bạn đang trống</p>
+        <small>Hãy chọn vài món thơm ngon nhé!</small>
+      </div>
+    `;
+    document.getElementById('subtotalText').textContent = '0đ';
+    document.getElementById('totalText').textContent = '0đ';
+    document.getElementById('btnPlaceOrder').disabled = true;
+    return;
+  }
+
+  document.getElementById('btnPlaceOrder').disabled = false;
+  let subtotal = 0;
+
+  container.innerHTML = cart.map((it, idx) => {
+    let optExtra = 0;
+    if (it.selectedOptions) {
+      optExtra = it.selectedOptions.reduce((s, o) => s + (o.extraPrice || 0), 0);
+    }
+    const itemTotal = (it.price + optExtra) * it.quantity;
+    subtotal += itemTotal;
+
+    const optLabels = (it.selectedOptions || []).map((o) => `${o.choiceLabel}`).join(', ');
+
+    return `
+      <div class="custom-card p-2 mb-2 border d-flex gap-2 align-items-center">
+        <img src="${it.image || '/images/default-food.png'}" class="rounded-2" style="width: 50px; height: 50px; object-fit: cover;">
+        <div class="flex-grow-1 min-w-0">
+          <div class="fw-bold small text-truncate">${it.name}</div>
+          <div class="text-muted" style="font-size: 0.75rem;">${optLabels || 'Tiêu chuẩn'}</div>
+          ${it.note ? `<div class="text-secondary fst-italic" style="font-size: 0.7rem;"><i class="fa-regular fa-comment me-1"></i>${it.note}</div>` : ''}
+          <div class="fw-semibold text-primary small">${formatCurrency(itemTotal)}</div>
+        </div>
+        <div class="d-flex align-items-center gap-1">
+          <button class="btn btn-sm btn-outline-secondary px-2 py-0" onclick="CartManager.updateQuantity('${currentTableNumber}', ${idx}, ${it.quantity - 1}); renderCartOffcanvas();">-</button>
+          <span class="small fw-bold px-1">${it.quantity}</span>
+          <button class="btn btn-sm btn-outline-secondary px-2 py-0" onclick="CartManager.updateQuantity('${currentTableNumber}', ${idx}, ${it.quantity + 1}); renderCartOffcanvas();">+</button>
+          <button class="btn btn-sm btn-outline-danger px-2 py-0 ms-1" onclick="CartManager.removeItem('${currentTableNumber}', ${idx}); renderCartOffcanvas();">
+            <i class="fa-solid fa-trash" style="font-size: 0.75rem;"></i>
+          </button>
+        </div>
+      </div>
+    `;
+  }).join('');
+
+  document.getElementById('subtotalText').textContent = formatCurrency(subtotal);
+
+  let discount = 0;
+  if (currentAppliedCoupon) {
+    if (currentAppliedCoupon.type === 'percent') {
+      discount = (subtotal * currentAppliedCoupon.value) / 100;
+      if (currentAppliedCoupon.maxDiscount && discount > currentAppliedCoupon.maxDiscount) {
+        discount = currentAppliedCoupon.maxDiscount;
+      }
+    } else {
+      discount = currentAppliedCoupon.value;
+    }
+  }
+
+  discount = Math.min(discount, subtotal);
+  const total = Math.max(0, subtotal - discount);
+
+  if (discount > 0) {
+    document.getElementById('discountRow').style.display = 'flex';
+    document.getElementById('discountText').textContent = `-${formatCurrency(discount)}`;
+  } else {
+    document.getElementById('discountRow').style.display = 'none';
+  }
+
+  document.getElementById('totalText').textContent = formatCurrency(total);
+}
+
+async function applyCoupon() {
+  const inputEl = document.getElementById('couponInput');
+  if (!inputEl) return;
+  const code = inputEl.value.trim();
+  const msgEl = document.getElementById('couponMessage');
+  const cart = CartManager.getCart(currentTableNumber);
+  const subtotal = CartManager.getTotal(cart);
+
+  if (!code) {
+    msgEl.innerHTML = '<span class="text-danger">Vui lòng nhập mã giảm giá</span>';
+    return;
+  }
+
+  try {
+    const res = await fetch('/api/customer/coupons/validate', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ code, subtotal })
+    });
+    const result = await res.json();
+    if (!result.success) throw new Error(result.message);
+
+    currentAppliedCoupon = result.data;
+    msgEl.innerHTML = `<span class="text-success"><i class="fa-solid fa-circle-check me-1"></i> Áp dụng thành công mã <strong>${result.data.code}</strong>!</span>`;
+    renderCartOffcanvas();
+  } catch (err) {
+    currentAppliedCoupon = null;
+    msgEl.innerHTML = `<span class="text-danger">${err.message}</span>`;
+    renderCartOffcanvas();
+  }
+}
+
+async function submitOrder() {
+  if (!currentTableNumber) {
+    Swal.fire({
+      icon: 'warning',
+      title: 'Chưa chọn bàn',
+      text: 'Vui lòng chọn số bàn trước khi đặt món!'
+    });
+    new bootstrap.Modal(document.getElementById('switchTableModal')).show();
+    return;
+  }
+
+  const cart = CartManager.getCart(currentTableNumber);
+  if (cart.length === 0) return;
+
+  // Nếu bàn này đang có đơn đang phục vụ (activeOrder), hỏi khách muốn gọi thêm vào đơn hay tạo đơn mới
+  let isAddMore = false;
+  if (activeOrderId) {
+    const askModal = await Swal.fire({
+      icon: 'question',
+      title: 'Bàn Đang Có Đơn Phục Vụ',
+      html: `Bàn <b>${currentTableNumber}</b> đang có đơn hàng <b>#${activeOrderCode}</b>.<br><br>Bạn muốn gửi thêm món vào <b>hóa đơn chung của bàn</b> hay tạo đơn riêng mới?`,
+      showCancelButton: true,
+      confirmButtonText: '<i class="fa-solid fa-plus me-1"></i> Gọi Thêm Vào Bàn',
+      cancelButtonText: 'Tạo Đơn Riêng Mới',
+      confirmButtonColor: '#4f46e5',
+      cancelButtonColor: '#64748b'
+    });
+    isAddMore = askModal.isConfirmed;
+  }
+
+  const customerName = document.getElementById('orderCustomerName').value.trim();
+  const customerPhone = document.getElementById('orderCustomerPhone').value.trim();
+  const note = document.getElementById('orderGeneralNote').value.trim();
+  const couponCode = currentAppliedCoupon ? currentAppliedCoupon.code : null;
+
+  const btn = document.getElementById('btnPlaceOrder');
+  btn.disabled = true;
+  btn.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span> Đang gửi order...';
+
+  try {
+    const itemsPayload = cart.map((it) => ({
+      product: it.product,
+      quantity: it.quantity,
+      selectedOptions: it.selectedOptions || [],
+      note: it.note || ''
+    }));
+
+    if (isAddMore) {
+      // Gọi thêm món vào đơn đang phục vụ của bàn
+      const res = await fetch(`/api/customer/orders/${activeOrderId}/items`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ items: itemsPayload })
+      });
+      const result = await res.json();
+      if (!result.success) throw new Error(result.message || 'Gọi thêm món không thành công');
+
+      CartManager.clearCart(currentTableNumber);
+
+      await Swal.fire({
+        icon: 'success',
+        title: 'Đã Gọi Thêm Món Thành Công!',
+        text: `Các món mới đã được thêm vào đơn #${activeOrderCode}. Nhân viên sẽ xác nhận ngay!`,
+        confirmButtonText: 'Xem Đơn Hàng'
+      });
+
+      window.location.href = `/order-status/${activeOrderCode}`;
+      return;
+    }
+
+    // Nếu tạo đơn mới
+    const payload = {
+      tableNumber: currentTableNumber,
+      customerName,
+      customerPhone,
+      note,
+      couponCode,
+      items: itemsPayload
+    };
+
+    const res = await fetch('/api/customer/orders', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload)
+    });
+    const result = await res.json();
+
+    if (!result.success) {
+      throw new Error(result.message || 'Đặt món không thành công');
+    }
+
+    // Xóa giỏ hàng bàn này
+    CartManager.clearCart(currentTableNumber);
+
+    await Swal.fire({
+      icon: 'success',
+      title: 'Đặt Món Thành Công!',
+      text: `Mã đơn của bạn là: ${result.data.orderCode}. Nhân viên đang tiếp nhận đơn.`,
+      confirmButtonText: 'Theo Dõi Đơn Hàng'
+    });
+
+    window.location.href = `/order-status/${result.data.orderCode}`;
+  } catch (err) {
+    Swal.fire({
+      icon: 'error',
+      title: 'Lỗi đặt đơn',
+      text: err.message
+    });
+  } finally {
+    btn.disabled = false;
+    btn.innerHTML = '<i class="fa-solid fa-paper-plane me-1"></i> Xác Nhận Đặt Đơn';
+  }
+}
+</script>

@@ -1,0 +1,62 @@
+<!-- <div class="container-fluid px-md-4 py-3">
+  <div class="d-flex flex-wrap justify-content-between align-items-center mb-4 pb-2 border-bottom">
+    <div>
+      <h3 class="fw-bold mb-1"><i class="fa-solid fa-clipboard-list text-primary me-2"></i> Nhật Ký Thao Tác Hệ Thống (Audit Logs)</h3>
+      <p class="text-muted small mb-0">Theo dõi toàn bộ lịch sử tạo, sửa món, đổi trạng thái và thanh toán đơn hàng</p>
+    </div>
+  </div>
+
+  <div class="custom-card p-4 border-0 shadow-sm">
+    <div class="table-responsive">
+      <table class="table table-hover align-middle mb-0 small">
+        <thead class="table-light">
+          <tr>
+            <th style="width: 170px;">Thời Gian</th>
+            <th>Người Thực Hiện</th>
+            <th>Vai Trò</th>
+            <th>Hành Động</th>
+            <th>Mã Đơn Hàng</th>
+            <th>Nội Dung Thao Tác</th>
+          </tr>
+        </thead>
+        <tbody>
+          <% if (logs && logs.length > 0) { %>
+            <% logs.forEach(l => { %>
+              <tr>
+                <td class="text-muted"><%= new Date(l.createdAt).toLocaleString('vi-VN') %></td>
+                <td>
+                  <strong><%= l.actor ? l.actor.fullName : 'Khách vãng lai' %></strong>
+                  <% if (l.actor && l.actor.email) { %>
+                    <div class="text-muted" style="font-size: 0.75rem;"><%= l.actor.email %></div>
+                  <% } %>
+                </td>
+                <td>
+                  <span class="badge <%= l.actorRole === 'admin' ? 'bg-danger' : (l.actorRole === 'staff' ? 'bg-primary' : 'bg-secondary') %> text-uppercase">
+                    <%= l.actorRole %>
+                  </span>
+                </td>
+                <td>
+                  <span class="badge bg-light text-dark border"><%= l.action %></span>
+                </td>
+                <td>
+                  <% if (l.order) { %>
+                    <a href="/order-status/<%= l.order.orderCode %>" class="fw-bold text-decoration-none">
+                      #<%= l.order.orderCode %>
+                    </a>
+                  <% } else { %>
+                    <span class="text-muted">N/A</span>
+                  <% } %>
+                </td>
+                <td><%= l.note || 'Không có ghi chú' %></td>
+              </tr>
+            <% }) %>
+          <% } else { %>
+            <tr>
+              <td colspan="6" class="text-center py-4 text-muted">Chưa có nhật ký ghi nhận</td>
+            </tr>
+          <% } %>
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div> -->

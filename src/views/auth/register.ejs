@@ -1,0 +1,94 @@
+<div class="container py-4">
+  <div class="row justify-content-center">
+    <div class="col-md-6 col-lg-5">
+      <div class="custom-card p-4 p-md-5 border-0 shadow-lg">
+        <div class="text-center mb-4">
+          <div class="d-inline-flex p-3 rounded-circle bg-success-subtle text-success mb-3">
+            <i class="fa-solid fa-user-plus" style="font-size: 2rem;"></i>
+          </div>
+          <h3 class="fw-bold mb-1">Đăng Ký Tài Khoản</h3>
+          <p class="text-muted small">Tạo tài khoản để lưu lịch sử đặt món và nhận ưu đãi</p>
+        </div>
+
+        <form id="registerForm">
+          <div class="mb-3">
+            <label class="form-label fw-semibold">Họ và tên</label>
+            <input type="text" id="fullName" class="form-control" required>
+          </div>
+
+          <div class="mb-3">
+            <label class="form-label fw-semibold">Email</label>
+            <input type="email" id="email" class="form-control" required>
+          </div>
+
+          <div class="mb-3">
+            <label class="form-label fw-semibold">Số điện thoại (tùy chọn)</label>
+            <input type="tel" id="phone" class="form-control">
+          </div>
+
+          <div class="mb-4">
+            <label class="form-label fw-semibold">Mật khẩu</label>
+            <input type="password" id="password" class="form-control" required minlength="6">
+          </div>
+
+          <button type="submit" class="btn btn-success w-100 py-2 fw-semibold rounded-pill mb-3" id="btnRegister">
+            <i class="fa-solid fa-check me-1"></i> Hoàn Tất Đăng Ký
+          </button>
+        </form>
+
+        <div class="text-center mt-3 text-muted small">
+          Đã có tài khoản? <a href="/login" class="text-primary fw-semibold">Đăng nhập</a>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+document.getElementById('registerForm').addEventListener('submit', async (e) => {
+  e.preventDefault();
+  const fullName = document.getElementById('fullName').value.trim();
+  const email = document.getElementById('email').value.trim();
+  const phone = document.getElementById('phone').value.trim();
+  const password = document.getElementById('password').value;
+  const btn = document.getElementById('btnRegister');
+
+  btn.disabled = true;
+  btn.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span> Đang xử lý...';
+
+  try {
+    const payload = { fullName, email, password };
+    if (phone) payload.phone = phone;
+
+    const res = await fetch('/api/auth/register', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload)
+    });
+    const result = await res.json();
+
+    if (!result.success) {
+      throw new Error(result.message || 'Đăng ký không thành công');
+    }
+
+    await Swal.fire({
+      icon: 'success',
+      title: 'Đăng ký thành công!',
+      text: 'Chào mừng bạn đến với Coffee & Tea House',
+      timer: 1500,
+      showConfirmButton: false
+    });
+
+    window.location.href = '/menu';
+  } catch (err) {
+    Swal.fire({
+      icon: 'error',
+      title: 'Lỗi đăng ký',
+      text: err.message
+    });
+  } finally {
+    btn.disabled = false;
+    btn.innerHTML = '<i class="fa-solid fa-check me-1"></i> Hoàn Tất Đăng Ký';
+  }
+});
+</script>

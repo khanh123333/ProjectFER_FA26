@@ -1,0 +1,81 @@
+<div class="container py-4">
+  <div class="d-flex justify-content-between align-items-center mb-4 pb-2 border-bottom">
+    <div>
+      <h3 class="fw-bold mb-1">
+        <i class="fa-solid fa-bookmark text-primary me-2"></i> Lịch Sử Đặt Bàn Của Tôi
+      </h3>
+      <p class="text-muted small mb-0">Theo dõi danh sách các yêu cầu đặt bàn và tình trạng giữ chỗ</p>
+    </div>
+    <a href="/reservation" class="btn btn-primary rounded-pill px-4 fw-semibold">
+      <i class="fa-solid fa-plus me-1"></i> Đặt Bàn Mới
+    </a>
+  </div>
+
+  <% if (!reservations || reservations.length === 0) { %>
+    <div class="card border-0 shadow-sm rounded-4 p-5 text-center">
+      <div class="my-3 text-muted">
+        <i class="fa-solid fa-calendar-xmark fs-1 text-secondary opacity-50 mb-3"></i>
+        <h5 class="fw-bold">Bạn chưa có lịch đặt bàn nào</h5>
+        <p class="small text-muted mb-4">Hãy đặt bàn trước để quán chuẩn bị chỗ ngồi ưng ý nhất cho bạn nhé!</p>
+        <a href="/reservation" class="btn btn-outline-primary rounded-pill px-4">
+          <i class="fa-solid fa-chair me-1"></i> Đặt Bàn Ngay
+        </a>
+      </div>
+    </div>
+  <% } else { %>
+    <div class="row g-3">
+      <% reservations.forEach(r => { %>
+        <div class="col-md-6 col-lg-4">
+          <div class="card border-0 shadow-sm rounded-4 p-4 h-100 d-flex flex-column justify-content-between">
+            <div>
+              <div class="d-flex justify-content-between align-items-center mb-3">
+                <span class="fw-bold text-primary">#<%= r.reservationCode %></span>
+                <% if (r.status === 'pending') { %>
+                  <span class="badge bg-warning-subtle text-warning border border-warning rounded-pill px-3 py-1">Chờ Xác Nhận</span>
+                <% } else if (r.status === 'confirmed') { %>
+                  <span class="badge bg-primary-subtle text-primary border border-primary rounded-pill px-3 py-1">Đã Giữ Chỗ</span>
+                <% } else if (r.status === 'arrived') { %>
+                  <span class="badge bg-success-subtle text-success border border-success rounded-pill px-3 py-1">Đã Nhận Bàn</span>
+                <% } else if (r.status === 'no_show') { %>
+                  <span class="badge bg-danger-subtle text-danger border border-danger rounded-pill px-3 py-1">Tự Động Hủy (>15p)</span>
+                <% } else { %>
+                  <span class="badge bg-secondary-subtle text-secondary border rounded-pill px-3 py-1">Đã Hủy</span>
+                <% } %>
+              </div>
+
+              <h5 class="fw-bold mb-2">
+                <i class="fa-solid fa-clock text-danger me-2"></i><%= r.reservationTime %> - <%= r.reservationDate %>
+              </h5>
+
+              <ul class="list-unstyled small text-muted mb-3">
+                <li class="mb-1"><i class="fa-solid fa-user-group me-2 text-primary"></i><%= r.guestCount %> khách (<%= r.adultCount %> lớn, <%= r.childrenCount %> trẻ)</li>
+                <li class="mb-1"><i class="fa-solid fa-location-dot me-2 text-info"></i>Vị trí: <%= locationLabels[r.locationPreference] || r.locationPreference %></li>
+                <li class="mb-1">
+                  <i class="fa-solid fa-chair me-2 text-success"></i>Bàn: 
+                  <strong><%= r.table ? r.table.tableNumber : 'Chưa xếp bàn' %></strong>
+                </li>
+                <li>
+                  <i class="fa-solid fa-money-bill-wave me-2 text-warning"></i>Tiền cọc: 
+                  <% if (r.depositRequired) { %>
+                    <strong class="<%= r.depositStatus === 'paid' ? 'text-success' : 'text-danger' %>">
+                      200.000đ (<%= r.depositStatus === 'paid' ? 'Đã cọc' : 'Chờ cọc' %>)
+                    </strong>
+                  <% } else { %>
+                    <span class="text-success">Không cần cọc</span>
+                  <% } %>
+                </li>
+              </ul>
+            </div>
+
+            <div class="pt-3 border-top d-flex gap-2">
+              <a href="/reservation/<%= r.reservationCode %>" class="btn btn-outline-primary btn-sm rounded-pill w-100">
+                <i class="fa-solid fa-eye me-1"></i> Xem Chi Tiết
+              </a>
+            </div>
+          </div>
+        </div>
+      <% }) %>
+    </div>
+  <% } %>
+</div>
+

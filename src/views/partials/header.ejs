@@ -1,0 +1,103 @@
+<nav class="navbar navbar-expand-lg navbar-custom sticky-top">
+  <div class="container">
+    <a class="navbar-brand brand-logo" href="/">
+      <i class="fa-solid fa-mug-hot"></i> Coffee & Tea POS
+    </a>
+    <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarContent">
+      <span class="navbar-toggler-icon"></span>
+    </button>
+
+    <div class="collapse navbar-collapse" id="navbarContent">
+      <ul class="navbar-nav me-auto mb-2 mb-lg-0">
+        <li class="nav-item">
+          <a class="nav-link fw-semibold" href="/"><i class="fa-solid fa-house me-1"></i> Trang Chủ</a>
+        </li>
+        <li class="nav-item">
+          <a class="nav-link fw-semibold" href="/menu"><i class="fa-solid fa-utensils me-1"></i> Thực Đơn</a>
+        </li>
+        <li class="nav-item">
+          <a class="nav-link fw-semibold text-warning-emphasis" href="/reservation">
+            <i class="fa-solid fa-calendar-check me-1"></i> Đặt Bàn Trước
+          </a>
+        </li>
+        <% if (currentUser && currentUser.role === 'customer') { %>
+          <li class="nav-item">
+            <a class="nav-link fw-semibold" href="/my-orders"><i class="fa-solid fa-clock-rotate-left me-1"></i> Đơn Của Tôi</a>
+          </li>
+          <li class="nav-item">
+            <a class="nav-link fw-semibold" href="/my-reservations"><i class="fa-solid fa-bookmark me-1"></i> Bàn Đã Đặt</a>
+          </li>
+        <% } %>
+
+        <% if (currentUser && (currentUser.role === 'staff' || currentUser.role === 'admin')) { %>
+          <li class="nav-item">
+            <a class="nav-link text-primary fw-bold" href="/staff/dashboard">
+              <i class="fa-solid fa-bell-concierge me-1"></i> Bảng Đơn Hàng (Staff)
+            </a>
+          </li>
+          <li class="nav-item">
+            <a class="nav-link text-success fw-bold" href="/staff/shifts">
+              <i class="fa-solid fa-cash-register me-1"></i> Giao Ca & Kiểm Quỹ
+            </a>
+          </li>
+        <% } %>
+
+        <% if (currentUser && currentUser.role === 'admin') { %>
+          <li class="nav-item dropdown">
+            <a class="nav-link dropdown-toggle text-danger fw-bold" href="#" role="button" data-bs-toggle="dropdown">
+              <i class="fa-solid fa-chart-pie me-1"></i> Quản Trị (Admin)
+            </a>
+            <ul class="dropdown-menu shadow-sm">
+              <li><a class="dropdown-item" href="/admin/dashboard"><i class="fa-solid fa-gauge me-2"></i> Báo Cáo Doanh Thu</a></li>
+              <li><hr class="dropdown-divider"></li>
+              <li><a class="dropdown-item" href="/admin/products"><i class="fa-solid fa-bowl-food me-2"></i> Quản Lý Món Ăn</a></li>
+              <li><a class="dropdown-item" href="/admin/categories"><i class="fa-solid fa-list me-2"></i> Quản Lý Danh Mục</a></li>
+              <li><a class="dropdown-item" href="/admin/tables"><i class="fa-solid fa-couch me-2"></i> Quản Lý Bàn Ăn</a></li>
+              <li><a class="dropdown-item" href="/admin/staff"><i class="fa-solid fa-users-gear me-2"></i> Tài Khoản Nhân Viên</a></li>
+              <li><a class="dropdown-item" href="/admin/logs"><i class="fa-solid fa-clipboard-list me-2"></i> Nhật Ký Thao Tác</a></li>
+            </ul>
+          </li>
+        <% } %>
+      </ul>
+
+      <div class="d-flex align-items-center gap-2">
+        <% if (currentUser) { %>
+          <div class="dropdown">
+            <button class="btn btn-outline-secondary btn-sm dropdown-toggle rounded-pill px-3 py-1" type="button" data-bs-toggle="dropdown">
+              <i class="fa-solid fa-circle-user me-1 text-primary"></i>
+              <strong><%= currentUser.fullName %></strong>
+              <span class="badge bg-secondary ms-1 text-uppercase" style="font-size: 0.65rem;"><%= currentUser.role %></span>
+            </button>
+            <ul class="dropdown-menu dropdown-menu-end shadow-sm">
+              <li><span class="dropdown-item-text text-muted small"><%= currentUser.email %></span></li>
+              <li><hr class="dropdown-divider"></li>
+              <li>
+                <button class="dropdown-item text-danger" onclick="logoutUser()">
+                  <i class="fa-solid fa-right-from-bracket me-2"></i> Đăng xuất
+                </button>
+              </li>
+            </ul>
+          </div>
+        <% } else { %>
+          <a href="/login" class="btn btn-outline-primary btn-sm rounded-pill px-3">
+            <i class="fa-solid fa-arrow-right-to-bracket me-1"></i> Đăng Nhập
+          </a>
+          <a href="/register" class="btn btn-primary btn-sm rounded-pill px-3">
+            Đăng Ký
+          </a>
+        <% } %>
+      </div>
+    </div>
+  </div>
+</nav>
+
+<script>
+async function logoutUser() {
+  try {
+    await fetch('/api/auth/logout', { method: 'POST' });
+    window.location.href = '/login';
+  } catch (e) {
+    window.location.href = '/login';
+  }
+}
+</script>

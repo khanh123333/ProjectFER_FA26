@@ -1,0 +1,164 @@
+<div class="container-fluid px-md-4 py-3">
+  <div class="d-flex flex-wrap justify-content-between align-items-center mb-4 pb-2 border-bottom">
+    <div>
+      <h3 class="fw-bold mb-1"><i class="fa-solid fa-couch text-primary me-2"></i> Quản Lý Bàn Ăn</h3>
+      <p class="text-muted small mb-0">Quản lý danh sách bàn, trạng thái phục vụ và sức chứa của từng bàn</p>
+    </div>
+    <div>
+      <button class="btn btn-primary rounded-pill px-4 fw-semibold" onclick="openCreateTableModal()">
+        <i class="fa-solid fa-plus me-1"></i> Thêm Bàn Mới
+      </button>
+    </div>
+  </div>
+
+  <div class="row g-3">
+    <% tables.forEach(t => { %>
+      <% 
+        const isEmpty = t.status === 'empty'; 
+        const isReserved = t.status === 'reserved';
+        const isOccupied = t.status === 'occupied';
+
+        const locationNames = {
+          window: 'Gần cửa sổ',
+          outdoor: 'Ngoài trời',
+          indoor: 'Phòng lạnh'
+        };
+      %>
+      <div class="col-md-6 col-lg-4 col-xl-3">
+        <div class="custom-card p-4 border text-center h-100 d-flex flex-column justify-content-between <%= isEmpty ? 'border-success-subtle' : (isReserved ? 'border-warning-subtle' : 'border-danger-subtle') %>">
+          <div>
+            <div class="d-flex justify-content-between align-items-center mb-3">
+              <% if (isEmpty) { %>
+                <span class="badge bg-success-subtle text-success border border-success rounded-pill px-3 py-1">
+                  Bàn trống (Khách vãng lai)
+                </span>
+              <% } else if (isReserved) { %>
+                <span class="badge bg-warning-subtle text-warning-emphasis border border-warning rounded-pill px-3 py-1">
+                  <i class="fa-solid fa-bookmark me-1"></i> Đã đặt trước
+                </span>
+              <% } else { %>
+                <span class="badge bg-danger-subtle text-danger border border-danger rounded-pill px-3 py-1">
+                  Đang có khách
+                </span>
+              <% } %>
+              <span class="text-muted small"><i class="fa-solid fa-user-group me-1"></i><%= t.capacity %> người</span>
+            </div>
+
+            <!-- Table Icon & Info -->
+            <div class="my-4">
+              <div class="table-avatar-icon mx-auto <%= isEmpty ? 'bg-success-subtle text-success' : (isReserved ? 'bg-warning-subtle text-warning' : 'bg-danger-subtle text-danger') %>" style="width: 76px; height: 76px; font-size: 2rem; border-radius: 50%; display: flex; align-items: center; justify-content: center;">
+                <i class="fa-solid fa-chair"></i>
+              </div>
+              <h4 class="fw-bold mt-3 mb-1"><%= t.tableNumber %></h4>
+              <p class="small text-muted mb-1">
+                <%= isEmpty ? 'Sẵn sàng đón khách vãng lai' : (isReserved ? 'Đang giữ chỗ đặt hẹn' : 'Bàn đang có đơn phục vụ') %>
+              </p>
+              <span class="badge bg-light text-dark border rounded-pill px-2 py-1 small">
+                <i class="fa-solid fa-location-dot text-primary me-1"></i><%= locationNames[t.location] || t.location || 'Phòng lạnh' %>
+              </span>
+            </div>
+          </div>
+
+          <div class="d-flex justify-content-center gap-2 pt-3 border-top">
+            <a href="/menu?table=<%= encodeURIComponent(t.tableNumber) %>" target="_blank" class="btn btn-outline-primary btn-sm rounded-pill px-3">
+              <i class="fa-solid fa-utensils me-1"></i> Xem Menu Bàn
+            </a>
+            <button class="btn btn-outline-danger btn-sm rounded-pill px-3" onclick="deleteTable('<%= t._id %>')" title="Xóa bàn">
+              <i class="fa-solid fa-trash me-1"></i> Xóa
+            </button>
+          </div>
+        </div>
+      </div>
+    <% }) %>
+  </div>
+</div>
+
+<!-- Modal Thêm Bàn -->
+<div class="modal fade" id="tableModal" tabindex="-1">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content border-0 shadow-lg">
+      <div class="modal-header">
+        <h5 class="modal-title fw-bold">Thêm Bàn Mới</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body p-4">
+        <div class="mb-3">
+          <label class="form-label fw-semibold">Tên / Số bàn <span class="text-danger">*</span></label>
+          <input type="text" id="tNumber" class="form-control" placeholder="Bàn 11..." required>
+        </div>
+        <div class="mb-3">
+          <label class="form-label fw-semibold">Sức chứa (Số ghế)</label>
+          <input type="number" id="tCapacity" class="form-control" value="4" min="1">
+        </div>
+        <div class="mb-3">
+          <label class="form-label fw-semibold">Vị trí bàn</label>
+          <select id="tLocation" class="form-select">
+            <option value="indoor">Phòng lạnh</option>
+            <option value="window">Gần cửa sổ</option>
+            <option value="outdoor">Ngoài trời</option>
+          </select>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary rounded-pill" data-bs-dismiss="modal">Hủy</button>
+        <button type="button" class="btn btn-primary rounded-pill px-4" onclick="saveTable()">Tạo Bàn Mới</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+function openCreateTableModal() {
+  document.getElementById('tNumber').value = '';
+  document.getElementById('tCapacity').value = '4';
+  document.getElementById('tLocation').value = 'indoor';
+  new bootstrap.Modal(document.getElementById('tableModal')).show();
+}
+
+async function saveTable() {
+  const tableNumber = document.getElementById('tNumber').value.trim();
+  const capacity = parseInt(document.getElementById('tCapacity').value, 10) || 4;
+  const location = document.getElementById('tLocation').value;
+
+  if (!tableNumber) {
+    Swal.fire({ icon: 'warning', title: 'Thiếu thông tin', text: 'Vui lòng nhập số bàn' });
+    return;
+  }
+
+  try {
+    const res = await fetch('/api/admin/tables', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ tableNumber, capacity, location })
+    });
+    const result = await res.json();
+    if (!result.success) throw new Error(result.message);
+
+    bootstrap.Modal.getInstance(document.getElementById('tableModal')).hide();
+    await Swal.fire({ icon: 'success', title: 'Thành công', text: 'Đã tạo bàn mới thành công!' });
+    window.location.reload();
+  } catch (err) {
+    Swal.fire({ icon: 'error', title: 'Lỗi', text: err.message });
+  }
+}
+
+async function deleteTable(id) {
+  const confirm = await Swal.fire({
+    title: 'Xóa bàn này?',
+    icon: 'warning',
+    showCancelButton: true,
+    confirmButtonText: 'Đồng ý xóa'
+  });
+  if (!confirm.isConfirmed) return;
+
+  try {
+    const res = await fetch(`/api/admin/tables/${id}`, { method: 'DELETE' });
+    const result = await res.json();
+    if (!result.success) throw new Error(result.message);
+
+    window.location.reload();
+  } catch (err) {
+    Swal.fire({ icon: 'error', title: 'Lỗi', text: err.message });
+  }
+}
+</script>

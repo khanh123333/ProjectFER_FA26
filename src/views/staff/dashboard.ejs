@@ -1,0 +1,1300 @@
+<div class="container-fluid px-md-4 py-3">
+  <!-- Top Bar -->
+  <div class="d-flex flex-wrap justify-content-between align-items-center mb-3 pb-2 border-bottom">
+    <div class="d-flex align-items-center gap-3">
+      <h3 class="fw-bold mb-0">
+        <i class="fa-solid fa-bell-concierge text-primary me-2"></i> Bảng Đơn Hàng (Staff)
+      </h3>
+      <!-- <span class="badge bg-success-subtle text-success border border-success px-3 py-2 rounded-pill">
+        <i class="fa-solid fa-wifi me-1"></i> Realtime Socket.IO
+      </span> -->
+    </div>
+
+    <div class="d-flex align-items-center gap-2 mt-2 mt-md-0">
+      <!-- Audio toggle -->
+      <!-- <button class="btn btn-outline-secondary btn-sm rounded-pill px-3" id="btnAudioToggle" onclick="toggleAudio()">
+        <i class="fa-solid fa-volume-high me-1 text-primary"></i> Chuông: <strong id="audioStatusText">Bật</strong>
+      </button> -->
+
+      <!-- Shift & Cashier Z-Report -->
+      <a href="/staff/shifts" class="btn btn-outline-success btn-sm rounded-pill px-3">
+        <i class="fa-solid fa-cash-register me-1"></i> Giao Ca (Z-Report)
+      </a>
+
+      <!-- Refresh button -->
+      <button class="btn btn-primary btn-sm rounded-pill px-3" onclick="loadStaffOrders()">
+        <i class="fa-solid fa-arrows-rotate me-1"></i> Làm Mới
+      </button>
+    </div>
+  </div>
+
+  <!-- Main Tabs Switcher -->
+  <div class="d-flex flex-wrap gap-2 mb-3 pb-2 border-bottom">
+    <button id="btnTabOrders" class="btn btn-primary rounded-pill px-4 fw-bold shadow-sm" onclick="showDashboardTab('orders')">
+      <i class="fa-solid fa-bell-concierge me-2"></i> Đơn Món Tại Bàn
+    </button>
+    <button id="btnTabReservations" class="btn btn-outline-primary rounded-pill px-4 fw-bold shadow-sm position-relative" onclick="showDashboardTab('reservations')">
+      <i class="fa-solid fa-calendar-check me-2"></i> Đặt Bàn Trước (Reservations)
+      <span id="resBadgePending" class="badge bg-danger rounded-pill ms-1 d-none">0</span>
+    </button>
+  </div>
+
+  <!-- SECTION 1: QUẢN LÝ ĐƠN HÀNG TẠI BÀN -->
+  <div id="sectionOrders">
+    <!-- Filters & Tabs -->
+    <div class="row g-2 align-items-center mb-3">
+      <div class="col-md-6 col-lg-8">
+        <div class="d-flex gap-2 overflow-x-auto pb-1" id="statusFilterTabs" style="scrollbar-width: thin;">
+          <button class="btn btn-sm btn-dark rounded-pill px-3 fw-semibold active" onclick="setFilterStatus('', this)">
+            Tất Cả <span class="badge bg-light text-dark ms-1" id="countAll">0</span>
+          </button>
+          <button class="btn btn-sm btn-outline-warning text-dark rounded-pill px-3 fw-semibold" onclick="setFilterStatus('pending', this)">
+            Chờ Xác Nhận <span class="badge bg-warning text-dark ms-1" id="countPending">0</span>
+          </button>
+          <button class="btn btn-sm btn-outline-primary rounded-pill px-3 fw-semibold" onclick="setFilterStatus('confirmed', this)">
+            Đã Nhận <span class="badge bg-primary ms-1" id="countConfirmed">0</span>
+          </button>
+          <button class="btn btn-sm btn-outline-info text-dark rounded-pill px-3 fw-semibold" onclick="setFilterStatus('preparing', this)">
+            Đang Pha Chế <span class="badge bg-info text-dark ms-1" id="countPreparing">0</span>
+          </button>
+          <button class="btn btn-sm btn-outline-secondary rounded-pill px-3 fw-semibold" onclick="setFilterStatus('ready', this)">
+            Sẵn Sàng <span class="badge bg-secondary ms-1" id="countReady">0</span>
+          </button>
+          <button class="btn btn-sm btn-outline-success rounded-pill px-3 fw-semibold" onclick="setFilterStatus('served', this)">
+            Đang Phục Vụ <span class="badge bg-success ms-1" id="countServed">0</span>
+          </button>
+          <button class="btn btn-sm btn-outline-secondary rounded-pill px-3 fw-semibold" onclick="setFilterStatus('completed', this)">
+            Hoàn Tất
+          </button>
+        </div>
+      </div>
+
+      <div class="col-md-6 col-lg-4">
+        <div class="input-group input-group-sm">
+          <span class="input-group-text bg-white"><i class="fa-solid fa-magnifying-glass text-muted"></i></span>
+          <input type="text" id="staffSearchInput" class="form-control" placeholder="Tìm theo mã đơn, số bàn, khách...">
+        </div>
+      </div>
+    </div>
+
+    <!-- Orders Grid -->
+    <div class="row g-3" id="ordersGrid">
+      <div class="col-12 text-center py-5">
+        <div class="spinner-border text-primary" role="status"></div>
+        <p class="text-muted small mt-2">Đang tải danh sách đơn...</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- SECTION 2: QUẢN LÝ ĐẶT BÀN TRƯỚC (TABLE RESERVATIONS) -->
+  <div id="sectionReservations" style="display: none;">
+    <!-- Sơ đồ trạng thái bàn Realtime -->
+    <div class="card border-0 shadow-sm rounded-4 p-3 mb-3 bg-light">
+      <div class="d-flex flex-wrap justify-content-between align-items-center mb-2">
+        <h6 class="fw-bold mb-0 text-dark">
+          <i class="fa-solid fa-chair text-primary me-2"></i> Trạng Thái Bàn Trong Quán (Realtime)
+        </h6>
+        <div class="small d-flex gap-3">
+          <span><span class="badge bg-success rounded-circle p-1 me-1"> </span> Trống (Vãng lai)</span>
+          <span><span class="badge bg-warning rounded-circle p-1 me-1"> </span> Đã giữ chỗ</span>
+          <span><span class="badge bg-danger rounded-circle p-1 me-1"> </span> Đang có khách</span>
+        </div>
+      </div>
+      <div class="d-flex flex-wrap gap-2 pt-2" id="tablesStatusMap">
+        <!-- Rendered by JS -->
+      </div>
+    </div>
+
+    <!-- Thanh lọc & Thao tác Đặt bàn -->
+    <div class="row g-2 align-items-center mb-3">
+      <div class="col-md-7 col-lg-8">
+        <div class="d-flex gap-2 overflow-x-auto pb-1" id="resFilterTabs" style="scrollbar-width: thin;">
+          <button class="btn btn-sm btn-dark rounded-pill px-3 fw-semibold active" onclick="setResFilter('', this)">
+            Tất Cả <span class="badge bg-light text-dark ms-1" id="resCountAll">0</span>
+          </button>
+          <button class="btn btn-sm btn-outline-warning text-dark rounded-pill px-3 fw-semibold" onclick="setResFilter('pending', this)">
+            Chờ Xác Nhận <span class="badge bg-warning text-dark ms-1" id="resCountPending">0</span>
+          </button>
+          <button class="btn btn-sm btn-outline-primary rounded-pill px-3 fw-semibold" onclick="setResFilter('confirmed', this)">
+            Đã Giữ Chỗ <span class="badge bg-primary ms-1" id="resCountConfirmed">0</span>
+          </button>
+          <button class="btn btn-sm btn-outline-success rounded-pill px-3 fw-semibold" onclick="setResFilter('arrived', this)">
+            Khách Đã Đến <span class="badge bg-success ms-1" id="resCountArrived">0</span>
+          </button>
+          <button class="btn btn-sm btn-outline-secondary rounded-pill px-3 fw-semibold" onclick="setResFilter('expired', this)">
+            Quá Hạn (>15p) / Hủy
+          </button>
+        </div>
+      </div>
+
+      <div class="col-md-5 col-lg-4 text-md-end d-flex gap-2 justify-content-md-end">
+        <button class="btn btn-outline-danger btn-sm rounded-pill px-3 fw-semibold" onclick="triggerAutoCancelCheck()" title="Quét hủy tự động các đơn trễ quá 15 phút">
+          <i class="fa-solid fa-stopwatch me-1"></i> Quét Quá Hạn 15P
+        </button>
+        <button class="btn btn-outline-primary btn-sm rounded-pill px-3" onclick="loadStaffReservations()">
+          <i class="fa-solid fa-arrows-rotate me-1"></i> Tải Lại
+        </button>
+      </div>
+    </div>
+
+    <!-- Reservations Grid -->
+    <div class="row g-3" id="reservationsGrid">
+      <div class="col-12 text-center py-5">
+        <div class="spinner-border text-primary" role="status"></div>
+        <p class="text-muted small mt-2">Đang tải danh sách đặt bàn...</p>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Modal Chi Tiết Đơn Hàng & Thao Tác (Staff) -->
+<div class="modal fade" id="staffOrderModal" tabindex="-1">
+  <div class="modal-dialog modal-dialog-centered modal-lg modal-dialog-scrollable">
+    <div class="modal-content border-0 shadow-lg">
+      <div class="modal-header border-bottom bg-light">
+        <div>
+          <h5 class="modal-title fw-bold" id="modalOrderCode">Chi Tiết Đơn Hàng</h5>
+          <span class="small text-muted" id="modalTableAndDate"></span>
+        </div>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body p-4" id="modalOrderBody">
+        <!-- Rendered by JS -->
+      </div>
+      <div class="modal-footer border-top bg-light" id="modalOrderFooter">
+        <!-- Actions rendered by JS -->
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Modal Thanh Toán & Hóa Đơn -->
+<div class="modal fade" id="paymentModal" tabindex="-1">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content border-0 shadow-lg">
+      <div class="modal-header border-bottom">
+        <h5 class="modal-title fw-bold"><i class="fa-solid fa-cash-register text-success me-2"></i> Thanh Toán Đơn Hàng</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body p-4">
+        <div class="p-3 bg-light rounded-3 mb-3 text-center">
+          <div class="text-muted small">Tổng tiền thanh toán</div>
+          <div class="fw-bold fs-3 text-primary" id="payModalTotal">0đ</div>
+        </div>
+
+        <div class="mb-3">
+          <label class="form-label fw-semibold">Phương thức thanh toán</label>
+          <div class="d-grid gap-2">
+            <input type="radio" class="btn-check" name="paymentMethodRadio" id="methodCash" value="cash" checked>
+            <label class="btn btn-outline-success text-start py-2" for="methodCash">
+              <i class="fa-solid fa-money-bill-wave me-2"></i> Tiền Mặt (Cash)
+            </label>
+
+            <input type="radio" class="btn-check" name="paymentMethodRadio" id="methodTransfer" value="transfer">
+            <label class="btn btn-outline-primary text-start py-2" for="methodTransfer">
+              <i class="fa-solid fa-building-columns me-2"></i> Chuyển Khoản Ngân Hàng (QR / Transfer)
+            </label>
+
+            <input type="radio" class="btn-check" name="paymentMethodRadio" id="methodCard" value="card">
+            <label class="btn btn-outline-info text-start py-2" for="methodCard">
+              <i class="fa-solid fa-credit-card me-2"></i> Thẻ Ngân Hàng / POS (Card)
+            </label>
+          </div>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary rounded-pill" data-bs-dismiss="modal">Hủy</button>
+        <button type="button" class="btn btn-success rounded-pill px-4" id="btnConfirmPay" onclick="confirmPayment()">
+          <i class="fa-solid fa-check me-1"></i> Xác Nhận Đã Thu Tiền
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Modal Xếp Bàn Cho Đơn Đặt Trước -->
+<div class="modal fade" id="assignTableModal" tabindex="-1">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content border-0 shadow-lg">
+      <div class="modal-header border-bottom">
+        <h5 class="modal-title fw-bold">
+          <i class="fa-solid fa-chair text-primary me-2"></i> Xếp Bàn Cho Khách Đặt Chỗ
+        </h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body p-4">
+        <div class="p-3 bg-light rounded-3 mb-3" id="assignModalResInfo">
+          <!-- Rendered by JS -->
+        </div>
+
+        <div class="mb-3">
+          <label class="form-label fw-semibold">Chọn bàn phù hợp <span class="text-danger">*</span></label>
+          <select id="selectAssignTable" class="form-select">
+            <!-- Rendered by JS -->
+          </select>
+          <small class="text-muted d-block mt-1">
+            Chỉ hiển thị các bàn đang hoạt động trong quán. Khi gán bàn, trạng thái bàn sẽ chuyển sang <strong>Đã giữ chỗ (Reserved)</strong>.
+          </small>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary rounded-pill" data-bs-dismiss="modal">Hủy</button>
+        <button type="button" class="btn btn-primary rounded-pill px-4" id="btnConfirmAssignTable" onclick="submitAssignTable()">
+          <i class="fa-solid fa-check me-1"></i> Xác Nhận Xếp Bàn
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+let currentFilterStatus = '';
+let currentSearch = '';
+let ordersCache = [];
+let activeOrderIdForPay = null;
+
+// Khởi tạo Socket.IO cho Staff
+const socket = io();
+socket.emit('join:staff');
+
+socket.on('order:new', (data) => {
+  OrderSound.playChime();
+  Swal.fire({
+    toast: true,
+    position: 'top-end',
+    icon: 'info',
+    title: `Có đơn mới từ ${data.tableNumber || 'Bàn'}!`,
+    text: `Mã đơn: ${data.orderCode}`,
+    timer: 5000
+  });
+  loadStaffOrders();
+});
+
+socket.on('order:status-changed', () => {
+  loadStaffOrders();
+});
+
+socket.on('order:updated', () => {
+  loadStaffOrders();
+});
+
+function toggleAudio() {
+  OrderSound.enabled = !OrderSound.enabled;
+  document.getElementById('audioStatusText').textContent = OrderSound.enabled ? 'Bật' : 'Tắt';
+  const icon = document.querySelector('#btnAudioToggle i');
+  if (OrderSound.enabled) {
+    icon.className = 'fa-solid fa-volume-high me-1 text-primary';
+    OrderSound.playChime();
+  } else {
+    icon.className = 'fa-solid fa-volume-xmark me-1 text-danger';
+  }
+}
+
+function setFilterStatus(status, btn) {
+  currentFilterStatus = status;
+  document.querySelectorAll('#statusFilterTabs button').forEach((b) => {
+    b.classList.remove('active', 'btn-dark');
+    if (!b.className.includes('btn-outline-')) {
+      b.classList.add('btn-outline-secondary');
+    }
+  });
+  btn.classList.add('active', 'btn-dark');
+  renderOrdersGrid();
+}
+
+async function loadStaffOrders() {
+  try {
+    const res = await fetch('/api/staff/orders?limit=100');
+    const result = await res.json();
+    if (!result.success) throw new Error(result.message);
+
+    ordersCache = result.data;
+    updateTabCounters(ordersCache);
+    renderOrdersGrid();
+  } catch (err) {
+    console.error('Lỗi tải đơn:', err);
+  }
+}
+
+function updateTabCounters(orders) {
+  document.getElementById('countAll').textContent = orders.length;
+  // Đếm cả đơn pending và các đơn đang phục vụ nhưng có món đợt mới chờ duyệt
+  const pendingCount = orders.filter((o) => o.status === 'pending' || (o.items && o.items.some((it) => it.itemStatus === 'pending'))).length;
+  document.getElementById('countPending').textContent = pendingCount;
+  document.getElementById('countConfirmed').textContent = orders.filter((o) => o.status === 'confirmed').length;
+  document.getElementById('countPreparing').textContent = orders.filter((o) => o.status === 'preparing').length;
+  document.getElementById('countReady').textContent = orders.filter((o) => o.status === 'ready').length;
+  document.getElementById('countServed').textContent = orders.filter((o) => o.status === 'served').length;
+}
+
+function renderOrdersGrid() {
+  const container = document.getElementById('ordersGrid');
+  const query = currentSearch.toLowerCase().trim();
+
+  let filtered = ordersCache;
+  if (currentFilterStatus === 'pending') {
+    filtered = filtered.filter((o) => o.status === 'pending' || (o.items && o.items.some((it) => it.itemStatus === 'pending')));
+  } else if (currentFilterStatus) {
+    filtered = filtered.filter((o) => o.status === currentFilterStatus);
+  }
+  if (query) {
+    filtered = filtered.filter((o) => {
+      const code = (o.orderCode || '').toLowerCase();
+      const table = (o.table ? o.table.tableNumber : '').toLowerCase();
+      const customer = (o.customerName || '').toLowerCase();
+      return code.includes(query) || table.includes(query) || customer.includes(query);
+    });
+  }
+
+  if (filtered.length === 0) {
+    container.innerHTML = `
+      <div class="col-12 text-center py-5 text-muted">
+        <i class="fa-solid fa-inbox fs-1 opacity-25 mb-2"></i>
+        <p class="mb-0">Không có đơn hàng nào trong mục này</p>
+      </div>
+    `;
+    return;
+  }
+
+  container.innerHTML = filtered.map((o) => {
+    const hasPendingItems = o.items && o.items.some((it) => it.itemStatus === 'pending');
+    const isPending = o.status === 'pending' || hasPendingItems;
+    const cardPulse = isPending ? 'order-pending-pulse' : '';
+    const tableNum = o.table ? o.table.tableNumber : 'N/A';
+    const timeStr = new Date(o.createdAt).toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' });
+
+    return `
+      <div class="col-md-6 col-lg-4 col-xl-3">
+        <div class="custom-card p-3 border h-100 d-flex flex-column justify-content-between ${cardPulse}">
+          <div>
+            <div class="d-flex justify-content-between align-items-center mb-2">
+              <span class="badge bg-dark px-2 py-1 fs-6">${tableNum}</span>
+              <span class="badge ${getStatusBadgeClass(o.status)} text-uppercase">${getStatusName(o.status)}</span>
+            </div>
+
+            ${hasPendingItems && o.status !== 'pending' ? `
+              <div class="mb-2">
+                <span class="badge bg-warning text-dark border border-warning w-100 py-1">
+                  <i class="fa-solid fa-bell me-1"></i> Có món Đợt mới chờ duyệt
+                </span>
+              </div>
+            ` : ''}
+
+            <div class="d-flex justify-content-between text-muted small mb-2">
+              <span class="fw-bold text-dark">#${o.orderCode}</span>
+              <span><i class="fa-regular fa-clock me-1"></i>${timeStr}</span>
+            </div>
+
+            <!-- Items summary -->
+            <div class="bg-light p-2 rounded-3 mb-2 small" style="max-height: 110px; overflow-y: auto;">
+              ${o.items.map((it) => `
+                <div class="d-flex justify-content-between align-items-center mb-1">
+                  <span class="text-truncate" style="max-width: 170px;">
+                    <strong>${it.quantity}x</strong> ${it.nameSnapshot}
+                    ${it.addedRound > 1 ? `<span class="badge bg-secondary-subtle text-secondary" style="font-size:0.65rem;">Đợt ${it.addedRound}</span>` : ''}
+                  </span>
+                  <span class="badge ${it.itemStatus === 'pending' ? 'bg-warning text-dark' : 'bg-white text-dark'} border px-1" style="font-size: 0.7rem;">${it.itemStatus}</span>
+                </div>
+              `).join('')}
+            </div>
+
+            ${o.note ? `<div class="small text-danger mb-2"><i class="fa-regular fa-comment-dots me-1"></i>${o.note}</div>` : ''}
+          </div>
+
+          <div class="pt-2 border-top mt-2">
+            <div class="d-flex justify-content-between align-items-center mb-2">
+              <span class="small text-muted">Tổng tiền:</span>
+              <span class="fw-bold text-primary">${formatCurrency(o.totalAmount)}</span>
+            </div>
+
+            <!-- Quick Action Buttons -->
+            <div class="d-flex gap-1">
+              <button class="btn btn-outline-secondary btn-sm flex-grow-1" onclick="openStaffOrderDetail('${o._id}')">
+                Chi Tiết
+              </button>
+
+              ${hasPendingItems && o.status !== 'pending' ? `
+                <button class="btn btn-warning btn-sm text-dark fw-semibold" onclick="approveOrderItems('${o._id}')" title="Duyệt món gọi thêm">
+                  <i class="fa-solid fa-check-double me-1"></i> Duyệt
+                </button>
+              ` : ''}
+
+              ${o.status === 'pending' ? `
+                <button class="btn btn-success btn-sm" onclick="quickConfirm('${o._id}')" title="Xác nhận đơn">
+                  <i class="fa-solid fa-check"></i>
+                </button>
+                <button class="btn btn-danger btn-sm" onclick="quickReject('${o._id}')" title="Từ chối đơn">
+                  <i class="fa-solid fa-xmark"></i>
+                </button>
+              ` : ''}
+
+              ${o.status === 'confirmed' ? `
+                <button class="btn btn-info btn-sm text-white" onclick="changeStatus('${o._id}', 'preparing')" title="Bắt đầu pha chế">
+                  <i class="fa-solid fa-blender"></i> Pha chế
+                </button>
+              ` : ''}
+
+              ${o.status === 'preparing' ? `
+                <button class="btn btn-secondary btn-sm" onclick="changeStatus('${o._id}', 'ready')" title="Đã làm xong">
+                  <i class="fa-solid fa-bell-concierge"></i> Sẵn sàng
+                </button>
+              ` : ''}
+
+              ${o.status === 'ready' ? `
+                <button class="btn btn-success btn-sm" onclick="changeStatus('${o._id}', 'served')" title="Mang ra bàn">
+                  <i class="fa-solid fa-mug-hot"></i> Phục vụ
+                </button>
+              ` : ''}
+
+              ${o.status === 'served' && !hasPendingItems ? `
+                <button class="btn btn-primary btn-sm" onclick="openPaymentModal('${o._id}', ${o.totalAmount})" title="Thanh toán">
+                  <i class="fa-solid fa-cash-register"></i> Thu tiền
+                </button>
+              ` : ''}
+            </div>
+          </div>
+        </div>
+      </div>
+    `;
+  }).join('');
+}
+
+function getStatusBadgeClass(s) {
+  const map = {
+    pending: 'bg-warning text-dark',
+    confirmed: 'bg-primary',
+    preparing: 'bg-info text-white',
+    ready: 'bg-secondary',
+    served: 'bg-success',
+    completed: 'bg-dark',
+    cancelled: 'bg-danger',
+    rejected: 'bg-danger'
+  };
+  return map[s] || 'bg-secondary';
+}
+
+function getStatusName(s) {
+  const map = {
+    pending: 'Chờ xác nhận',
+    confirmed: 'Đã nhận',
+    preparing: 'Đang pha chế',
+    ready: 'Sẵn sàng',
+    served: 'Đang phục vụ',
+    completed: 'Hoàn tất',
+    cancelled: 'Đã hủy',
+    rejected: 'Từ chối'
+  };
+  return map[s] || s;
+}
+
+// Thao tác nhanh
+async function quickConfirm(id) {
+  try {
+    const res = await fetch(`/api/staff/orders/${id}/confirm`, { method: 'POST' });
+    const result = await res.json();
+    if (!result.success) throw new Error(result.message);
+    loadStaffOrders();
+  } catch (err) {
+    Swal.fire({ icon: 'error', title: 'Lỗi', text: err.message });
+  }
+}
+
+async function quickReject(id) {
+  const { value: reason } = await Swal.fire({
+    title: 'Từ chối đơn hàng?',
+    input: 'text',
+    inputLabel: 'Lý do từ chối (bắt buộc)',
+    inputPlaceholder: 'Hết nguyên liệu, quán sắp đóng cửa...',
+    showCancelButton: true,
+    confirmButtonText: 'Xác Nhận Từ Chối',
+    cancelButtonText: 'Đóng',
+    inputValidator: (value) => {
+      if (!value) return 'Vui lòng nhập lý do từ chối!';
+    }
+  });
+
+  if (!reason) return;
+
+  try {
+    const res = await fetch(`/api/staff/orders/${id}/reject`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ reason })
+    });
+    const result = await res.json();
+    if (!result.success) throw new Error(result.message);
+    loadStaffOrders();
+  } catch (err) {
+    Swal.fire({ icon: 'error', title: 'Lỗi', text: err.message });
+  }
+}
+
+async function changeStatus(id, newStatus) {
+  try {
+    const res = await fetch(`/api/staff/orders/${id}/status`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ status: newStatus })
+    });
+    const result = await res.json();
+    if (!result.success) throw new Error(result.message);
+    loadStaffOrders();
+  } catch (err) {
+    Swal.fire({ icon: 'error', title: 'Lỗi', text: err.message });
+  }
+}
+
+async function openStaffOrderDetail(id) {
+  try {
+    const res = await fetch(`/api/staff/orders/${id}`);
+    const result = await res.json();
+    if (!result.success) throw new Error(result.message);
+
+    const { order, logs } = result.data;
+    const hasPendingItems = order.items && order.items.some((it) => it.itemStatus === 'pending');
+
+    document.getElementById('modalOrderCode').textContent = `Đơn #${order.orderCode} (${order.table ? order.table.tableNumber : ''})`;
+    document.getElementById('modalTableAndDate').textContent = `Đặt lúc: ${new Date(order.createdAt).toLocaleString('vi-VN')} | Khách: ${order.customerName || 'Vãng lai'} (${order.customerPhone || 'Không có SĐT'})`;
+
+    const body = document.getElementById('modalOrderBody');
+    body.innerHTML = `
+      ${hasPendingItems ? `
+        <div class="alert alert-warning py-2 px-3 d-flex align-items-center justify-content-between mb-3 rounded-3 shadow-sm border border-warning">
+          <div class="small">
+            <i class="fa-solid fa-circle-exclamation text-warning-emphasis me-2"></i>
+            <strong>Khách vừa gọi thêm món (Đợt mới) đang chờ duyệt!</strong>
+          </div>
+          <button class="btn btn-sm btn-warning text-dark fw-bold rounded-pill px-3" onclick="approveOrderItems('${order._id}')">
+            <i class="fa-solid fa-check-double me-1"></i> Duyệt Hết
+          </button>
+        </div>
+      ` : ''}
+
+      <div class="d-flex justify-content-between align-items-center mb-3">
+        <div>
+          <span class="badge ${getStatusBadgeClass(order.status)} fs-6 text-uppercase">${getStatusName(order.status)}</span>
+          ${hasPendingItems ? '<span class="badge bg-warning text-dark ms-2"><i class="fa-solid fa-clock me-1"></i>Có món chờ duyệt</span>' : ''}
+        </div>
+        <span class="fw-bold fs-5 text-primary">${formatCurrency(order.totalAmount)}</span>
+      </div>
+
+      <h6 class="fw-bold mb-2">Danh Sách Món Trong Đơn:</h6>
+      <div class="mb-4">
+        ${order.items.map((it) => `
+          <div class="p-2 mb-2 ${it.itemStatus === 'pending' ? 'bg-warning-subtle border border-warning' : 'bg-light border'} rounded-3 d-flex justify-content-between align-items-center">
+            <div>
+              <div class="fw-semibold">
+                ${it.quantity}x ${it.nameSnapshot} 
+                <span class="badge bg-secondary-subtle text-secondary small ms-1">Đợt ${it.addedRound || 1}</span>
+                ${it.itemStatus === 'pending' ? '<span class="badge bg-warning text-dark small ms-1"><i class="fa-solid fa-hourglass-start me-1"></i>Chờ xác nhận</span>' : ''}
+              </div>
+              <div class="text-muted small">${(it.selectedOptions || []).map((o) => o.choiceLabel).join(', ') || 'Tiêu chuẩn'}</div>
+              ${it.note ? `<div class="text-danger small fst-italic">${it.note}</div>` : ''}
+            </div>
+            <div class="d-flex align-items-center gap-2">
+              ${it.itemStatus === 'pending' ? `
+                <button class="btn btn-sm btn-success py-1 px-2 rounded-pill fw-semibold" onclick="approveSingleItem('${order._id}', '${it._id}')" title="Duyệt món này">
+                  <i class="fa-solid fa-check me-1"></i>Duyệt
+                </button>
+              ` : `
+                <span class="badge bg-white text-muted border">${it.itemStatus}</span>
+              `}
+              <button class="btn btn-sm btn-outline-danger py-0 px-2" onclick="staffRemoveItem('${order._id}', '${it._id}')" title="Xóa món">×</button>
+            </div>
+          </div>
+        `).join('')}
+      </div>
+
+      <h6 class="fw-bold mb-2"><i class="fa-solid fa-timeline me-1 text-primary"></i> Lịch Sử Thao Tác (Audit Log):</h6>
+      <div class="p-2 bg-white border rounded-3 small" style="max-height: 150px; overflow-y: auto;">
+        ${logs && logs.length > 0 ? logs.map((l) => `
+          <div class="mb-1 pb-1 border-bottom d-flex justify-content-between">
+            <span><strong>${l.actor ? l.actor.fullName : l.actorRole}:</strong> ${l.note || l.action}</span>
+            <span class="text-muted">${new Date(l.createdAt).toLocaleTimeString('vi-VN')}</span>
+          </div>
+        `).join('') : '<div class="text-muted">Chưa có log ghi nhận</div>'}
+      </div>
+    `;
+
+    const footer = document.getElementById('modalOrderFooter');
+    footer.innerHTML = `
+      ${hasPendingItems ? `
+        <button class="btn btn-warning rounded-pill px-4 text-dark fw-bold shadow-sm" onclick="approveOrderItems('${order._id}')">
+          <i class="fa-solid fa-check-double me-1"></i> Duyệt Món Đợt Mới
+        </button>
+      ` : ''}
+      ${order.status === 'served' && !hasPendingItems ? `
+        <button class="btn btn-primary rounded-pill px-4" onclick="bootstrap.Modal.getInstance(document.getElementById('staffOrderModal')).hide(); openPaymentModal('${order._id}', ${order.totalAmount})">
+          <i class="fa-solid fa-cash-register me-1"></i> Thanh Toán Ngay
+        </button>
+      ` : ''}
+      <button class="btn btn-secondary rounded-pill" data-bs-dismiss="modal">Đóng</button>
+    `;
+
+    new bootstrap.Modal(document.getElementById('staffOrderModal')).show();
+  } catch (err) {
+    Swal.fire({ icon: 'error', title: 'Lỗi', text: err.message });
+  }
+}
+
+async function approveOrderItems(orderId) {
+  try {
+    const res = await fetch(`/api/staff/orders/${orderId}/approve-items`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' }
+    });
+    const result = await res.json();
+    if (!result.success) throw new Error(result.message);
+
+    Swal.fire({
+      icon: 'success',
+      title: 'Đã duyệt món đợt mới!',
+      text: 'Món đã được xác nhận và chuyển vào danh sách chuẩn bị.',
+      timer: 1500,
+      showConfirmButton: false
+    });
+
+    const modalEl = document.getElementById('staffOrderModal');
+    const modalInstance = bootstrap.Modal.getInstance(modalEl);
+    if (modalInstance) modalInstance.hide();
+
+    loadStaffOrders();
+  } catch (err) {
+    Swal.fire({ icon: 'error', title: 'Lỗi duyệt món', text: err.message });
+  }
+}
+
+async function approveSingleItem(orderId, itemId) {
+  try {
+    const res = await fetch(`/api/staff/orders/${orderId}/items/${itemId}/approve`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' }
+    });
+    const result = await res.json();
+    if (!result.success) throw new Error(result.message);
+
+    Swal.fire({
+      icon: 'success',
+      title: 'Đã duyệt món!',
+      timer: 1200,
+      showConfirmButton: false
+    });
+
+    openStaffOrderDetail(orderId);
+    loadStaffOrders();
+  } catch (err) {
+    Swal.fire({ icon: 'error', title: 'Lỗi', text: err.message });
+  }
+}
+
+async function staffRemoveItem(orderId, itemId) {
+  const confirm = await Swal.fire({
+    title: 'Xác nhận xóa món?',
+    text: 'Thao tác này của nhân viên sẽ được ghi nhận vào nhật ký hệ thống.',
+    icon: 'warning',
+    showCancelButton: true,
+    confirmButtonText: 'Đồng ý xóa'
+  });
+  if (!confirm.isConfirmed) return;
+
+  try {
+    const res = await fetch(`/api/staff/orders/${orderId}/modify-items`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ action: 'remove', itemId })
+    });
+    const result = await res.json();
+    if (!result.success) throw new Error(result.message);
+
+    bootstrap.Modal.getInstance(document.getElementById('staffOrderModal')).hide();
+    loadStaffOrders();
+  } catch (err) {
+    Swal.fire({ icon: 'error', title: 'Lỗi', text: err.message });
+  }
+}
+
+function openPaymentModal(orderId, totalAmount) {
+  activeOrderIdForPay = orderId;
+  document.getElementById('payModalTotal').textContent = formatCurrency(totalAmount);
+  new bootstrap.Modal(document.getElementById('paymentModal')).show();
+}
+
+async function confirmPayment() {
+  if (!activeOrderIdForPay) return;
+  const method = document.querySelector('input[name="paymentMethodRadio"]:checked').value;
+  const btn = document.getElementById('btnConfirmPay');
+  btn.disabled = true;
+
+  try {
+    const res = await fetch(`/api/staff/orders/${activeOrderIdForPay}/pay`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ paymentMethod: method })
+    });
+    const result = await res.json();
+    if (!result.success) throw new Error(result.message);
+
+    bootstrap.Modal.getInstance(document.getElementById('paymentModal')).hide();
+
+    await Swal.fire({
+      icon: 'success',
+      title: 'Thanh toán thành công!',
+      text: `Đơn hàng #${result.data.orderCode} đã hoàn tất và bàn đã được giải phóng.`
+    });
+
+    loadStaffOrders();
+  } catch (err) {
+    Swal.fire({ icon: 'error', title: 'Lỗi thanh toán', text: err.message });
+  } finally {
+    btn.disabled = false;
+  }
+}
+
+/* ==============================================================
+   QUẢN LÝ ĐẶT BÀN TRƯỚC (TABLE RESERVATIONS) - STAFF LOGIC
+   ============================================================== */
+let reservationsCache = [];
+let tablesCache = [];
+let currentResFilter = '';
+let activeResIdForAssign = null;
+
+function showDashboardTab(tab) {
+  const btnOrders = document.getElementById('btnTabOrders');
+  const btnRes = document.getElementById('btnTabReservations');
+  const secOrders = document.getElementById('sectionOrders');
+  const secRes = document.getElementById('sectionReservations');
+
+  if (tab === 'orders') {
+    btnOrders.className = 'btn btn-primary rounded-pill px-4 fw-bold shadow-sm';
+    btnRes.className = 'btn btn-outline-primary rounded-pill px-4 fw-bold shadow-sm position-relative';
+    secOrders.style.display = 'block';
+    secRes.style.display = 'none';
+    loadStaffOrders();
+  } else {
+    btnOrders.className = 'btn btn-outline-primary rounded-pill px-4 fw-bold shadow-sm';
+    btnRes.className = 'btn btn-primary rounded-pill px-4 fw-bold shadow-sm position-relative';
+    secOrders.style.display = 'none';
+    secRes.style.display = 'block';
+    loadStaffReservations();
+  }
+}
+
+function setResFilter(filter, btn) {
+  currentResFilter = filter;
+  document.querySelectorAll('#resFilterTabs button').forEach(b => {
+    b.classList.remove('active', 'btn-dark');
+    if (!b.className.includes('btn-outline-')) {
+      b.classList.add('btn-outline-secondary');
+    }
+  });
+  btn.classList.add('active', 'btn-dark');
+  renderReservationsGrid();
+}
+
+async function loadStaffReservations() {
+  try {
+    const [resResp, tablesResp] = await Promise.all([
+      fetch('/api/staff/reservations'),
+      fetch('/api/staff/tables')
+    ]);
+
+    const resData = await resResp.json();
+    const tablesData = await tablesResp.json();
+
+    if (resData.success) {
+      reservationsCache = resData.data || [];
+    }
+    if (tablesData.success) {
+      tablesCache = tablesData.data || [];
+    }
+
+    renderTablesStatusMap();
+    renderReservationsGrid();
+  } catch (err) {
+    console.error('Lỗi khi tải dữ liệu đặt bàn:', err);
+  }
+}
+
+function renderTablesStatusMap() {
+  const container = document.getElementById('tablesStatusMap');
+  if (!container) return;
+
+  if (!tablesCache || tablesCache.length === 0) {
+    container.innerHTML = '<span class="text-muted small">Chưa có thông tin bàn</span>';
+    return;
+  }
+
+  const locLabels = {
+    window: 'Cửa sổ',
+    outdoor: 'Sân vườn',
+    indoor: 'Phòng lạnh'
+  };
+
+  container.innerHTML = tablesCache.map(t => {
+    let badgeClass = 'bg-success text-white';
+    let statusText = 'Trống (Vãng lai)';
+    if (t.status === 'reserved') {
+      badgeClass = 'bg-warning text-dark border border-warning';
+      statusText = 'Đã giữ chỗ';
+    } else if (t.status === 'occupied') {
+      badgeClass = 'bg-danger text-white';
+      statusText = 'Có khách';
+    }
+
+    return `
+      <div class="card border text-center p-2 rounded-3 shadow-xs" style="min-width: 105px;">
+        <div class="fw-bold fs-6">${t.tableNumber}</div>
+        <div class="small text-muted mb-1">${t.capacity} chỗ • ${locLabels[t.location] || t.location || ''}</div>
+        <span class="badge ${badgeClass} rounded-pill py-1" style="font-size: 0.7rem;">${statusText}</span>
+      </div>
+    `;
+  }).join('');
+}
+
+function renderReservationsGrid() {
+  const grid = document.getElementById('reservationsGrid');
+  if (!grid) return;
+
+  // Cập nhật counters
+  const total = reservationsCache.length;
+  const pending = reservationsCache.filter(r => r.status === 'pending').length;
+  const confirmed = reservationsCache.filter(r => r.status === 'confirmed').length;
+  const arrived = reservationsCache.filter(r => r.status === 'arrived').length;
+
+  document.getElementById('resCountAll').textContent = total;
+  document.getElementById('resCountPending').textContent = pending;
+  document.getElementById('resCountConfirmed').textContent = confirmed;
+  document.getElementById('resCountArrived').textContent = arrived;
+
+  const badgePending = document.getElementById('resBadgePending');
+  if (pending > 0) {
+    badgePending.textContent = pending;
+    badgePending.classList.remove('d-none');
+  } else {
+    badgePending.classList.add('d-none');
+  }
+
+  // Lọc
+  let list = reservationsCache;
+  if (currentResFilter === 'pending') {
+    list = list.filter(r => r.status === 'pending');
+  } else if (currentResFilter === 'confirmed') {
+    list = list.filter(r => r.status === 'confirmed');
+  } else if (currentResFilter === 'arrived') {
+    list = list.filter(r => r.status === 'arrived');
+  } else if (currentResFilter === 'expired') {
+    list = list.filter(r => r.status === 'no_show' || r.status === 'cancelled');
+  }
+
+  if (list.length === 0) {
+    grid.innerHTML = `
+      <div class="col-12 text-center py-5">
+        <i class="fa-solid fa-calendar-xmark fs-1 text-muted opacity-50 mb-2"></i>
+        <h6 class="text-muted fw-bold">Không có đơn đặt bàn nào trong danh mục này</h6>
+      </div>
+    `;
+    return;
+  }
+
+  const locLabels = {
+    window: 'Gần cửa sổ',
+    outdoor: 'Ngoài trời',
+    indoor: 'Phòng lạnh',
+    any: 'Tùy ý'
+  };
+
+  grid.innerHTML = list.map(r => {
+    const isPending = r.status === 'pending';
+    const isConfirmed = r.status === 'confirmed';
+    const isArrived = r.status === 'arrived';
+    const isNoShow = r.status === 'no_show';
+    const isCancelled = r.status === 'cancelled';
+
+    let statusBadge = '';
+    if (isPending) {
+      statusBadge = '<span class="badge bg-warning-subtle text-warning border border-warning rounded-pill px-3 py-1">Chờ Duyệt</span>';
+    } else if (isConfirmed) {
+      statusBadge = '<span class="badge bg-primary-subtle text-primary border border-primary rounded-pill px-3 py-1">Đã Giữ Chỗ</span>';
+    } else if (isArrived) {
+      statusBadge = '<span class="badge bg-success-subtle text-success border border-success rounded-pill px-3 py-1">Khách Đã Đến</span>';
+    } else if (isNoShow) {
+      statusBadge = '<span class="badge bg-danger-subtle text-danger border border-danger rounded-pill px-3 py-1">Tự Động Hủy (>15p)</span>';
+    } else {
+      statusBadge = '<span class="badge bg-secondary-subtle text-secondary border rounded-pill px-3 py-1">Đã Hủy</span>';
+    }
+
+    // Deposit badge & info
+    let depositHtml = '';
+    if (r.depositRequired) {
+      if (r.depositStatus === 'paid') {
+        depositHtml = `
+          <div class="badge bg-success-subtle text-success border border-success p-2 w-100 text-start mb-2">
+            <i class="fa-solid fa-circle-check me-1"></i> <strong>ĐÃ CỌC 200.000đ</strong>
+          </div>
+        `;
+      } else {
+        depositHtml = `
+          <div class="badge bg-danger-subtle text-danger border border-danger p-2 w-100 text-start mb-2">
+            <div class="d-flex justify-content-between align-items-center">
+              <span><i class="fa-solid fa-triangle-exclamation me-1"></i> <strong>CẦN CỌC: 200.000đ</strong> (Chưa nộp)</span>
+              <button class="btn btn-sm btn-danger rounded-pill py-0 px-2 fw-semibold" onclick="confirmDepositPaid('${r._id}')">
+                Xác nhận đã cọc
+              </button>
+            </div>
+            <div class="small fw-normal text-muted mt-1">${r.depositReason || ''}</div>
+          </div>
+        `;
+      }
+    } else {
+      depositHtml = `
+        <div class="badge bg-light text-muted border p-2 w-100 text-start mb-2 fw-normal">
+          <i class="fa-solid fa-check text-success me-1"></i> Miễn phí đặt cọc giữ chỗ
+        </div>
+      `;
+    }
+
+    // Table display
+    const tableText = r.table ? `<strong class="text-primary fs-6"><i class="fa-solid fa-chair me-1"></i>${r.table.tableNumber}</strong>` : `<span class="text-danger small fst-italic">Chưa xếp bàn</span>`;
+
+    // Action buttons
+    let actionButtons = '';
+    if (isPending) {
+      actionButtons = `
+        <button class="btn btn-primary btn-sm rounded-pill px-3" onclick="confirmReservation('${r._id}')">
+          <i class="fa-solid fa-check me-1"></i> Duyệt Giữ Bàn
+        </button>
+        <button class="btn btn-outline-secondary btn-sm rounded-pill px-3" onclick="openAssignTableModal('${r._id}')">
+          <i class="fa-solid fa-chair me-1"></i> ${r.table ? 'Đổi Bàn' : 'Xếp Bàn'}
+        </button>
+        <button class="btn btn-outline-danger btn-sm rounded-pill px-2" onclick="openCancelReservation('${r._id}')" title="Hủy bàn">
+          <i class="fa-solid fa-xmark"></i>
+        </button>
+      `;
+    } else if (isConfirmed) {
+      actionButtons = `
+        <button class="btn btn-success btn-sm rounded-pill px-3 fw-bold" onclick="checkInGuest('${r._id}')">
+          <i class="fa-solid fa-user-check me-1"></i> Khách Đã Đến (Check-in)
+        </button>
+        <button class="btn btn-outline-secondary btn-sm rounded-pill px-3" onclick="openAssignTableModal('${r._id}')">
+          <i class="fa-solid fa-chair me-1"></i> Đổi Bàn
+        </button>
+        <button class="btn btn-outline-danger btn-sm rounded-pill px-2" onclick="openCancelReservation('${r._id}')" title="Hủy bàn">
+          <i class="fa-solid fa-xmark"></i>
+        </button>
+      `;
+    } else if (isArrived) {
+      actionButtons = `
+        <span class="badge bg-success-subtle text-success border border-success px-3 py-2 rounded-pill">
+          <i class="fa-solid fa-mug-hot me-1"></i> Đang dùng bữa tại ${r.table ? r.table.tableNumber : 'bàn'}
+        </span>
+      `;
+    } else if (isNoShow) {
+      actionButtons = `
+        <span class="badge bg-danger-subtle text-danger border border-danger px-3 py-2 rounded-pill small">
+          <i class="fa-solid fa-stopwatch me-1"></i> Tự động hủy (Trễ 15p) - Bàn đã trống cho khách vãng lai
+        </span>
+      `;
+    } else {
+      actionButtons = `
+        <span class="text-muted small">Lý do: ${r.cancellationReason || 'Không rõ'}</span>
+      `;
+    }
+
+    return `
+      <div class="col-md-6 col-xl-4">
+        <div class="card border-0 shadow-sm rounded-4 p-4 h-100 d-flex flex-column justify-content-between ${isPending ? 'border-warning border' : ''}">
+          <div>
+            <div class="d-flex justify-content-between align-items-center mb-3">
+              <span class="fw-bold text-dark fs-6">#${r.reservationCode}</span>
+              ${statusBadge}
+            </div>
+
+            <h5 class="fw-bold mb-1">${r.customerName}</h5>
+            <div class="text-muted small mb-3">
+              <i class="fa-solid fa-phone me-1"></i><a href="tel:${r.phone}" class="text-decoration-none text-muted">${r.phone}</a>
+            </div>
+
+            <div class="bg-light rounded-3 p-3 mb-3">
+              <div class="d-flex justify-content-between align-items-center mb-1">
+                <span class="text-muted small">Thời gian đến:</span>
+                <strong class="text-danger"><i class="fa-solid fa-clock me-1"></i>${r.reservationTime} - ${r.reservationDate}</strong>
+              </div>
+              <div class="d-flex justify-content-between align-items-center mb-1">
+                <span class="text-muted small">Số lượng:</span>
+                <strong>${r.guestCount} khách (${r.adultCount} lớn, ${r.childrenCount} trẻ)</strong>
+              </div>
+              <div class="d-flex justify-content-between align-items-center mb-1">
+                <span class="text-muted small">Yêu cầu vị trí:</span>
+                <span class="badge bg-white text-dark border">${locLabels[r.locationPreference] || r.locationPreference}</span>
+              </div>
+              <div class="d-flex justify-content-between align-items-center">
+                <span class="text-muted small">Bàn gán:</span>
+                ${tableText}
+              </div>
+            </div>
+
+            ${depositHtml}
+
+            ${r.notes ? `<div class="small text-muted fst-italic mb-3"><i class="fa-solid fa-note-sticky me-1"></i>Ghi chú: ${r.notes}</div>` : ''}
+          </div>
+
+          <div class="pt-3 border-top d-flex flex-wrap gap-2 justify-content-between align-items-center">
+            ${actionButtons}
+          </div>
+        </div>
+      </div>
+    `;
+  }).join('');
+}
+
+async function confirmReservation(id) {
+  try {
+    const res = await fetch(`/api/staff/reservations/${id}/confirm`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({})
+    });
+    const data = await res.json();
+    if (!data.success) throw new Error(data.message);
+
+    Swal.fire({
+      icon: 'success',
+      title: 'Đã xác nhận đặt bàn!',
+      timer: 1500,
+      showConfirmButton: false
+    });
+    loadStaffReservations();
+  } catch (err) {
+    Swal.fire({ icon: 'error', title: 'Lỗi', text: err.message });
+  }
+}
+
+async function confirmDepositPaid(id) {
+  const confirm = await Swal.fire({
+    title: 'Xác nhận đã nhận cọc 200.000đ?',
+    text: 'Khách đã chuyển khoản thành công tiền cọc giữ chỗ 200.000 VNĐ.',
+    icon: 'question',
+    showCancelButton: true,
+    confirmButtonText: 'Đã nhận đủ 200.000đ',
+    cancelButtonText: 'Hủy'
+  });
+  if (!confirm.isConfirmed) return;
+
+  try {
+    const res = await fetch(`/api/staff/reservations/${id}/deposit-paid`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ transactionRef: 'Xác nhận bởi nhân viên thu ngân' })
+    });
+    const data = await res.json();
+    if (!data.success) throw new Error(data.message);
+
+    Swal.fire({
+      icon: 'success',
+      title: 'Đã xác nhận tiền cọc!',
+      timer: 1500,
+      showConfirmButton: false
+    });
+    loadStaffReservations();
+  } catch (err) {
+    Swal.fire({ icon: 'error', title: 'Lỗi', text: err.message });
+  }
+}
+
+function openAssignTableModal(id) {
+  activeResIdForAssign = id;
+  const reservation = reservationsCache.find(r => r._id === id);
+  if (!reservation) return;
+
+  const locLabels = {
+    window: 'Gần cửa sổ',
+    outdoor: 'Ngoài trời',
+    indoor: 'Phòng lạnh',
+    any: 'Tùy ý'
+  };
+
+  document.getElementById('assignModalResInfo').innerHTML = `
+    <div class="fw-bold">${reservation.customerName} - #${reservation.reservationCode}</div>
+    <div class="small text-muted">
+      ${reservation.guestCount} khách • Vị trí yêu cầu: <strong>${locLabels[reservation.locationPreference] || reservation.locationPreference}</strong> • Giờ hẹn: ${reservation.reservationTime}
+    </div>
+  `;
+
+  const select = document.getElementById('selectAssignTable');
+  select.innerHTML = tablesCache.map(t => {
+    const isCurrent = reservation.table && (reservation.table._id === t._id || reservation.table === t._id);
+    const locName = locLabels[t.location] || t.location || '';
+    const statusText = t.status === 'empty' ? 'Trống' : (t.status === 'reserved' ? 'Đã giữ chỗ' : 'Có khách');
+    return `<option value="${t._id}" ${isCurrent ? 'selected' : ''}>${t.tableNumber} (${t.capacity} chỗ - ${locName} - Trạng thái: ${statusText})</option>`;
+  }).join('');
+
+  new bootstrap.Modal(document.getElementById('assignTableModal')).show();
+}
+
+async function submitAssignTable() {
+  if (!activeResIdForAssign) return;
+  const tableId = document.getElementById('selectAssignTable').value;
+  if (!tableId) return;
+
+  try {
+    const res = await fetch(`/api/staff/reservations/${activeResIdForAssign}/assign-table`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ tableId })
+    });
+    const data = await res.json();
+    if (!data.success) throw new Error(data.message);
+
+    bootstrap.Modal.getInstance(document.getElementById('assignTableModal')).hide();
+    Swal.fire({
+      icon: 'success',
+      title: 'Đã xếp bàn thành công!',
+      timer: 1500,
+      showConfirmButton: false
+    });
+    loadStaffReservations();
+  } catch (err) {
+    Swal.fire({ icon: 'error', title: 'Lỗi', text: err.message });
+  }
+}
+
+async function checkInGuest(id) {
+  const confirm = await Swal.fire({
+    title: 'Xác nhận khách đã đến nhận bàn?',
+    text: 'Bàn sẽ được chuyển sang trạng thái "Đang phục vụ" (Occupied).',
+    icon: 'question',
+    showCancelButton: true,
+    confirmButtonText: 'Đồng ý Check-in'
+  });
+  if (!confirm.isConfirmed) return;
+
+  try {
+    const res = await fetch(`/api/staff/reservations/${id}/checkin`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' }
+    });
+    const data = await res.json();
+    if (!data.success) throw new Error(data.message);
+
+    Swal.fire({
+      icon: 'success',
+      title: 'Khách đã nhận bàn!',
+      text: 'Trạng thái bàn đã chuyển sang đang phục vụ.',
+      timer: 1800,
+      showConfirmButton: false
+    });
+    loadStaffReservations();
+    loadStaffOrders();
+  } catch (err) {
+    Swal.fire({ icon: 'error', title: 'Lỗi', text: err.message });
+  }
+}
+
+async function openCancelReservation(id) {
+  const result = await Swal.fire({
+    title: 'Hủy đơn giữ bàn?',
+    text: 'Nếu bàn đang ở trạng thái giữ chỗ, bàn sẽ tự động được giải phóng về trạng thái trống cho khách vãng lai.',
+    icon: 'warning',
+    input: 'text',
+    inputPlaceholder: 'Nhập lý do hủy (khách báo hủy, không liên lạc được,...)',
+    showCancelButton: true,
+    confirmButtonText: 'Xác nhận hủy',
+    confirmButtonColor: '#dc3545',
+    inputValidator: (val) => {
+      if (!val) return 'Vui lòng nhập lý do';
+    }
+  });
+
+  if (!result.isConfirmed) return;
+
+  try {
+    const res = await fetch(`/api/staff/reservations/${id}/cancel`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ reason: result.value })
+    });
+    const data = await res.json();
+    if (!data.success) throw new Error(data.message);
+
+    Swal.fire({
+      icon: 'success',
+      title: 'Đã hủy đơn đặt bàn!',
+      text: 'Bàn đã được giải phóng về trống cho khách vãng lai.'
+    });
+    loadStaffReservations();
+  } catch (err) {
+    Swal.fire({ icon: 'error', title: 'Lỗi', text: err.message });
+  }
+}
+
+async function triggerAutoCancelCheck() {
+  try {
+    const res = await fetch('/api/staff/reservations/check-expired', { method: 'POST' });
+    const data = await res.json();
+    if (!data.success) throw new Error(data.message);
+
+    if (data.data.count > 0) {
+      Swal.fire({
+        icon: 'warning',
+        title: 'Tự động hủy bàn quá giờ hẹn 15 phút!',
+        html: `Đã phát hiện và tự động hủy <strong>${data.data.count}</strong> đơn giữ bàn trễ quá 15 phút.<br>Bàn tương ứng đã tự động chuyển về trạng thái trống cho khách vãng lai.`
+      });
+    } else {
+      Swal.fire({
+        icon: 'info',
+        title: 'Không có đơn trễ quá 15 phút',
+        text: 'Tất cả các bàn đặt trước hiện đều trong thời gian hợp lệ hoặc khách đã đến.',
+        timer: 2000,
+        showConfirmButton: false
+      });
+    }
+    loadStaffReservations();
+  } catch (err) {
+    Swal.fire({ icon: 'error', title: 'Lỗi quét', text: err.message });
+  }
+}
+
+// Socket.IO Lắng nghe sự kiện Đặt Bàn
+socket.on('reservation:new', (data) => {
+  OrderSound.playChime();
+  Swal.fire({
+    toast: true,
+    position: 'top-end',
+    icon: 'info',
+    title: `Có đặt bàn mới #${data.reservationCode}!`,
+    text: `${data.customerName} - ${data.guestCount} khách (${data.reservationTime})`,
+    timer: 6000
+  });
+  loadStaffReservations();
+});
+
+socket.on('reservation:status-changed', () => {
+  loadStaffReservations();
+});
+
+socket.on('reservation:auto-cancelled', (data) => {
+  Swal.fire({
+    icon: 'warning',
+    title: 'Tự Động Hủy Giữ Bàn!',
+    html: `Đơn #${data.reservationCode} (${data.customerName}) trễ quá 15 phút không đến.<br><strong>${data.table ? data.table.tableNumber : 'Bàn'}</strong> đã tự động chuyển về trạng thái trống cho khách vãng lai.`,
+    timer: 8000
+  });
+  loadStaffReservations();
+  loadStaffOrders();
+});
+
+socket.on('table:status-changed', () => {
+  loadStaffReservations();
+  loadStaffOrders();
+});
+
+document.addEventListener('DOMContentLoaded', () => {
+  loadStaffOrders();
+  loadStaffReservations();
+
+  document.getElementById('staffSearchInput').addEventListener('input', (e) => {
+    currentSearch = e.target.value;
+    renderOrdersGrid();
+  });
+});
+</script>

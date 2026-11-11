@@ -1,0 +1,377 @@
+<div class="container py-4">
+  <!-- Breadcrumb & Header -->
+  <div class="row mb-4">
+    <div class="col-12 text-center">
+      <span class="badge bg-warning-subtle text-warning border border-warning px-3 py-2 rounded-pill fw-semibold mb-2">
+        <i class="fa-solid fa-bell me-1"></i> Đặt Chỗ Tiện Lợi - Trải Nghiệm Chu Đáo
+      </span>
+      <h2 class="fw-bold mb-2">
+        <i class="fa-solid fa-calendar-check text-primary me-2"></i> Đặt Bàn Trước (Table Reservation)
+      </h2>
+      <p class="text-muted mx-auto" style="max-width: 650px;">
+        Quý khách vui lòng chọn ngày, giờ đến, số lượng khách và yêu cầu vị trí. Hệ thống sẽ giữ bàn và sẵn sàng tiếp đón quý khách!
+      </p>
+    </div>
+  </div>
+
+  <div class="row g-4 justify-content-center">
+    <!-- Form Đặt Bàn -->
+    <div class="col-lg-7">
+      <div class="card border-0 shadow-sm rounded-4 p-4 p-md-5">
+        <h4 class="fw-bold mb-4 pb-2 border-bottom">
+          <i class="fa-solid fa-clipboard-user text-primary me-2"></i> Thông Tin Đặt Chỗ
+        </h4>
+
+        <form id="reservationForm" onsubmit="submitReservation(event)">
+          <!-- Họ tên & SĐT -->
+          <div class="row g-3 mb-3">
+            <div class="col-md-6">
+              <label class="form-label fw-semibold">
+                Họ và Tên Quý Khách <span class="text-danger">*</span>
+              </label>
+              <div class="input-group">
+                <span class="input-group-text bg-light border-end-0"><i class="fa-solid fa-user text-muted"></i></span>
+                <input type="text" id="custName" class="form-control border-start-0" 
+                  placeholder="Ví dụ: Nguyễn Văn A" 
+                  value="<%= currentUser ? currentUser.fullName : '' %>" required>
+              </div>
+            </div>
+
+            <div class="col-md-6">
+              <label class="form-label fw-semibold">
+                Số Điện Thoại <span class="text-danger">*</span>
+              </label>
+              <div class="input-group">
+                <span class="input-group-text bg-light border-end-0"><i class="fa-solid fa-phone text-muted"></i></span>
+                <input type="tel" id="custPhone" class="form-control border-start-0" 
+                  placeholder="Ví dụ: 0901234567" 
+                  value="<%= currentUser ? (currentUser.phone || '') : '' %>" required>
+              </div>
+            </div>
+          </div>
+
+          <!-- Email (Không bắt buộc) -->
+          <div class="mb-3">
+            <label class="form-label fw-semibold">Email nhận xác nhận</label>
+            <div class="input-group">
+              <span class="input-group-text bg-light border-end-0"><i class="fa-solid fa-envelope text-muted"></i></span>
+              <input type="email" id="custEmail" class="form-control border-start-0" 
+                placeholder="name@example.com (tùy chọn)" 
+                value="<%= currentUser ? currentUser.email : '' %>">
+            </div>
+          </div>
+
+          <!-- Ngày & Giờ đến -->
+          <div class="row g-3 mb-3">
+            <div class="col-md-6">
+              <label class="form-label fw-semibold">
+                Ngày Đến <span class="text-danger">*</span>
+              </label>
+              <div class="input-group">
+                <span class="input-group-text bg-light border-end-0"><i class="fa-solid fa-calendar text-muted"></i></span>
+                <input type="date" id="resDate" class="form-control border-start-0" required onchange="calculateDepositRule()">
+              </div>
+            </div>
+
+            <div class="col-md-6">
+              <label class="form-label fw-semibold">
+                Giờ Đến <span class="text-danger">*</span>
+              </label>
+              <div class="input-group">
+                <span class="input-group-text bg-light border-end-0"><i class="fa-solid fa-clock text-muted"></i></span>
+                <input type="time" id="resTime" class="form-control border-start-0" value="12:00" required onchange="calculateDepositRule()">
+              </div>
+              <small class="text-muted d-block mt-1">
+                <i class="fa-solid fa-fire text-danger me-1"></i>Giờ cao điểm: <strong>11:30 - 13:30</strong> & <strong>18:00 - 20:30</strong>
+              </small>
+            </div>
+          </div>
+
+          <!-- Số lượng Người Lớn & Trẻ Em -->
+          <div class="row g-3 mb-3">
+            <div class="col-md-6">
+              <label class="form-label fw-semibold">
+                Người Lớn (Adults) <span class="text-danger">*</span>
+              </label>
+              <div class="input-group">
+                <button type="button" class="btn btn-outline-secondary" onclick="adjustCount('adultCount', -1)">-</button>
+                <input type="number" id="adultCount" class="form-control text-center fw-bold" value="2" min="1" max="50" oninput="calculateDepositRule()" required>
+                <button type="button" class="btn btn-outline-secondary" onclick="adjustCount('adultCount', 1)">+</button>
+              </div>
+            </div>
+
+            <div class="col-md-6">
+              <label class="form-label fw-semibold">
+                Trẻ Em (Children)
+              </label>
+              <div class="input-group">
+                <button type="button" class="btn btn-outline-secondary" onclick="adjustCount('childrenCount', -1)">-</button>
+                <input type="number" id="childrenCount" class="form-control text-center fw-bold" value="0" min="0" max="30" oninput="calculateDepositRule()">
+                <button type="button" class="btn btn-outline-secondary" onclick="adjustCount('childrenCount', 1)">+</button>
+              </div>
+            </div>
+          </div>
+
+          <!-- Yêu cầu vị trí -->
+          <div class="mb-4">
+            <label class="form-label fw-semibold d-block">
+              Yêu Cầu Vị Trí Ngồi <span class="text-danger">*</span>
+            </label>
+            <div class="row g-2">
+              <div class="col-6 col-md-3">
+                <input type="radio" class="btn-check" name="locationPreference" id="locWindow" value="window" autocomplete="off">
+                <label class="btn btn-outline-primary w-100 py-3 rounded-3 text-center h-100 d-flex flex-column align-items-center justify-content-center" for="locWindow">
+                  <i class="fa-solid fa-cloud-sun fs-4 mb-2"></i>
+                  <span class="fw-bold small">Gần Cửa Sổ</span>
+                </label>
+              </div>
+              <div class="col-6 col-md-3">
+                <input type="radio" class="btn-check" name="locationPreference" id="locOutdoor" value="outdoor" autocomplete="off">
+                <label class="btn btn-outline-primary w-100 py-3 rounded-3 text-center h-100 d-flex flex-column align-items-center justify-content-center" for="locOutdoor">
+                  <i class="fa-solid fa-tree fs-4 mb-2"></i>
+                  <span class="fw-bold small">Ngoài Trời</span>
+                </label>
+              </div>
+              <div class="col-6 col-md-3">
+                <input type="radio" class="btn-check" name="locationPreference" id="locIndoor" value="indoor" autocomplete="off">
+                <label class="btn btn-outline-primary w-100 py-3 rounded-3 text-center h-100 d-flex flex-column align-items-center justify-content-center" for="locIndoor">
+                  <i class="fa-solid fa-snowflake fs-4 mb-2"></i>
+                  <span class="fw-bold small">Phòng Lạnh</span>
+                </label>
+              </div>
+              <div class="col-6 col-md-3">
+                <input type="radio" class="btn-check" name="locationPreference" id="locAny" value="any" checked autocomplete="off">
+                <label class="btn btn-outline-primary w-100 py-3 rounded-3 text-center h-100 d-flex flex-column align-items-center justify-content-center" for="locAny">
+                  <i class="fa-solid fa-thumbs-up fs-4 mb-2"></i>
+                  <span class="fw-bold small">Tùy Ý (Quán xếp)</span>
+                </label>
+              </div>
+            </div>
+          </div>
+
+          <!-- Ghi chú thêm -->
+          <div class="mb-4">
+            <label class="form-label fw-semibold">Ghi chú đặc biệt</label>
+            <textarea id="notes" class="form-control" rows="2" 
+              placeholder="Yêu cầu ghế trẻ em, trang trí sinh nhật, dị ứng thức ăn... (nếu có)"></textarea>
+          </div>
+
+          <!-- Nút Gửi Đặt Bàn -->
+          <button type="submit" class="btn btn-primary btn-lg w-100 rounded-pill shadow-sm py-3 fw-bold" id="btnSubmit">
+            <i class="fa-solid fa-paper-plane me-2"></i> Xác Nhận Gửi Yêu Cầu Đặt Bàn
+          </button>
+        </form>
+      </div>
+    </div>
+
+    <!-- Tóm Tắt & Nghiệp Vụ Cọc / Tự Động Hủy -->
+    <div class="col-lg-5">
+      <!-- Card Tính toán cọc -->
+      <div class="card border-0 shadow-sm rounded-4 p-4 mb-4">
+        <h5 class="fw-bold mb-3 pb-2 border-bottom">
+          <i class="fa-solid fa-calculator text-primary me-2"></i> Tóm Tắt & Điều Khoản Giữ Chỗ
+        </h5>
+
+        <div class="mb-3">
+          <div class="d-flex justify-content-between align-items-center mb-2">
+            <span class="text-muted">Tổng số khách:</span>
+            <span class="fw-bold fs-5" id="summaryGuestCount">2 khách (2 lớn, 0 trẻ)</span>
+          </div>
+          <div class="d-flex justify-content-between align-items-center mb-2">
+            <span class="text-muted">Khung giờ đến:</span>
+            <span class="fw-bold" id="summaryTime">12:00</span>
+          </div>
+          <div class="d-flex justify-content-between align-items-center mb-2">
+            <span class="text-muted">Phân loại giờ:</span>
+            <span id="summaryPeakBadge" class="badge bg-danger-subtle text-danger border border-danger px-3 py-1 rounded-pill">
+              <i class="fa-solid fa-fire me-1"></i> Giờ Cao Điểm
+            </span>
+          </div>
+        </div>
+
+        <!-- Box Trạng thái cọc -->
+        <div id="depositAlertBox" class="p-3 rounded-3 mb-3 border border-warning bg-warning-subtle text-dark">
+          <div class="d-flex align-items-start gap-2">
+            <i class="fa-solid fa-circle-exclamation text-warning fs-4 mt-1"></i>
+            <div>
+              <strong class="d-block text-warning-emphasis">Yêu Cầu Chuyển Khoản Đặt Cọc: 200.000đ</strong>
+              <small class="d-block mt-1" id="depositReasonText">
+                Đặt bàn vào khung giờ cao điểm (11:30 - 13:30 hoặc 18:00 - 20:30) hoặc số lượng trên 10 khách.
+              </small>
+            </div>
+          </div>
+        </div>
+
+        <!-- Box Tự động hủy nếu trễ 15 phút -->
+        <div class="p-3 rounded-3 bg-light border">
+          <div class="d-flex align-items-start gap-2">
+            <i class="fa-solid fa-stopwatch text-danger fs-4 mt-1"></i>
+            <div>
+              <strong class="d-block text-danger">Quy định giữ bàn 15 phút:</strong>
+              <small class="text-muted d-block mt-1">
+                Quá thời gian đặt hẹn <strong>15 phút</strong> mà khách không đến, hệ thống sẽ <strong>tự động hủy giữ bàn</strong> và chuyển bàn về trạng thái trống để đón khách vãng lai.
+              </small>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Hỗ trợ & Hotline -->
+      <div class="card border-0 shadow-sm rounded-4 p-4 bg-primary-subtle text-primary-emphasis">
+        <div class="d-flex align-items-center gap-3">
+          <div class="rounded-circle bg-primary text-white d-flex align-items-center justify-content-center" style="width: 50px; height: 50px;">
+            <i class="fa-solid fa-headset fs-4"></i>
+          </div>
+          <div>
+            <h6 class="fw-bold mb-1">Cần hỗ trợ hoặc thay đổi giờ?</h6>
+            <p class="small mb-0">Hotline quán: <strong>0901.000.001</strong> (8:00 - 22:30 mỗi ngày)</p>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+// Thiết lập ngày mặc định là hôm nay
+document.addEventListener('DOMContentLoaded', () => {
+  const today = new Date().toISOString().split('T')[0];
+  const dateInput = document.getElementById('resDate');
+  dateInput.value = today;
+  dateInput.min = today;
+
+  calculateDepositRule();
+});
+
+function adjustCount(id, delta) {
+  const input = document.getElementById(id);
+  let val = parseInt(input.value, 10) || 0;
+  val = Math.max(parseInt(input.min, 10) || 0, val + delta);
+  input.value = val;
+  calculateDepositRule();
+}
+
+function isPeak(timeStr) {
+  if (!timeStr) return false;
+  const [h, m] = timeStr.split(':').map(Number);
+  const minutes = h * 60 + m;
+  // 11:30 - 13:30 (690 - 810)
+  // 18:00 - 20:30 (1080 - 1230)
+  return (minutes >= 690 && minutes <= 810) || (minutes >= 1080 && minutes <= 1230);
+}
+
+function calculateDepositRule() {
+  const adult = parseInt(document.getElementById('adultCount').value, 10) || 1;
+  const children = parseInt(document.getElementById('childrenCount').value, 10) || 0;
+  const total = adult + children;
+  const time = document.getElementById('resTime').value || '12:00';
+
+  document.getElementById('summaryGuestCount').textContent = `${total} khách (${adult} lớn, ${children} trẻ)`;
+  document.getElementById('summaryTime').textContent = time;
+
+  const isPeakTime = isPeak(time);
+  const isOverTen = total > 10;
+
+  const peakBadge = document.getElementById('summaryPeakBadge');
+  if (isPeakTime) {
+    peakBadge.className = 'badge bg-danger-subtle text-danger border border-danger px-3 py-1 rounded-pill';
+    peakBadge.innerHTML = '<i class="fa-solid fa-fire me-1"></i> Giờ Cao Điểm';
+  } else {
+    peakBadge.className = 'badge bg-success-subtle text-success border border-success px-3 py-1 rounded-pill';
+    peakBadge.innerHTML = '<i class="fa-solid fa-mug-saucer me-1"></i> Giờ Thường';
+  }
+
+  const alertBox = document.getElementById('depositAlertBox');
+  const reasonText = document.getElementById('depositReasonText');
+
+  if (isOverTen || isPeakTime) {
+    alertBox.className = 'p-3 rounded-3 mb-3 border border-warning bg-warning-subtle text-dark';
+    alertBox.innerHTML = `
+      <div class="d-flex align-items-start gap-2">
+        <i class="fa-solid fa-circle-exclamation text-warning fs-4 mt-1"></i>
+        <div>
+          <strong class="d-block text-warning-emphasis">Bắt Buộc Chuyển Khoản Cọc: 200.000đ</strong>
+          <small class="d-block mt-1">
+            ${isOverTen && isPeakTime ? 'Do đoàn trên 10 khách (>10) và đến vào khung giờ cao điểm.' : (isOverTen ? 'Do số lượng khách trên 10 người (>10 khách).' : 'Do quý khách đặt bàn vào khung giờ cao điểm (11:30-13:30 hoặc 18:00-20:30).')}
+          </small>
+        </div>
+      </div>
+    `;
+  } else {
+    alertBox.className = 'p-3 rounded-3 mb-3 border border-success bg-success-subtle text-success-emphasis';
+    alertBox.innerHTML = `
+      <div class="d-flex align-items-start gap-2">
+        <i class="fa-solid fa-circle-check text-success fs-4 mt-1"></i>
+        <div>
+          <strong class="d-block text-success">Miễn Phí Đặt Cọc Giữ Chỗ</strong>
+          <small class="d-block mt-1">
+            Đoàn dưới hoặc bằng 10 khách và vào khung giờ thường không cần đặt cọc trước.
+          </small>
+        </div>
+      </div>
+    `;
+  }
+}
+
+async function submitReservation(e) {
+  e.preventDefault();
+
+  const customerName = document.getElementById('custName').value.trim();
+  const phone = document.getElementById('custPhone').value.trim();
+  const email = document.getElementById('custEmail').value.trim();
+  const reservationDate = document.getElementById('resDate').value;
+  const reservationTime = document.getElementById('resTime').value;
+  const adultCount = parseInt(document.getElementById('adultCount').value, 10) || 1;
+  const childrenCount = parseInt(document.getElementById('childrenCount').value, 10) || 0;
+  const locationPreference = document.querySelector('input[name="locationPreference"]:checked').value;
+  const notes = document.getElementById('notes').value.trim();
+
+  if (!customerName || !phone || !reservationDate || !reservationTime) {
+    Swal.fire({ icon: 'warning', title: 'Thiếu thông tin', text: 'Vui lòng điền đầy đủ các mục bắt buộc' });
+    return;
+  }
+
+  const btn = document.getElementById('btnSubmit');
+  btn.disabled = true;
+  btn.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span> Đang gửi yêu cầu...';
+
+  try {
+    const res = await fetch('/api/customer/reservations', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        customerName,
+        phone,
+        email,
+        reservationDate,
+        reservationTime,
+        adultCount,
+        childrenCount,
+        locationPreference,
+        notes
+      })
+    });
+
+    const result = await res.json();
+    if (!result.success) throw new Error(result.message);
+
+    const resData = result.data.reservation;
+
+    await Swal.fire({
+      icon: 'success',
+      title: 'Đặt bàn thành công!',
+      text: `Mã đặt bàn của bạn là #${resData.reservationCode}. Đang chuyển đến màn hình theo dõi...`,
+      timer: 2000,
+      showConfirmButton: false
+    });
+
+    window.location.href = `/reservation/${resData.reservationCode}`;
+  } catch (err) {
+    Swal.fire({ icon: 'error', title: 'Không thể đặt bàn', text: err.message });
+  } finally {
+    btn.disabled = false;
+    btn.innerHTML = '<i class="fa-solid fa-paper-plane me-2"></i> Xác Nhận Gửi Yêu Cầu Đặt Bàn';
+  }
+}
+</script>
+

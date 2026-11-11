@@ -1,0 +1,224 @@
+<div class="container-fluid px-md-4 py-3">
+  <div class="d-flex flex-wrap justify-content-between align-items-center mb-4 pb-2 border-bottom">
+    <div>
+      <h3 class="fw-bold mb-1"><i class="fa-solid fa-users-gear text-primary me-2"></i> Quản Lý Tài Khoản Nhân Viên</h3>
+      <p class="text-muted small mb-0">Tạo tài khoản, phân quyền, khóa/mở khóa và đặt lại mật khẩu</p>
+    </div>
+    <div>
+      <button class="btn btn-primary rounded-pill px-4 fw-semibold" onclick="openCreateStaffModal()">
+        <i class="fa-solid fa-user-plus me-1"></i> Tạo Nhân Viên Mới
+      </button>
+    </div>
+  </div>
+
+  <div class="custom-card p-4 border-0 shadow-sm">
+    <div class="table-responsive">
+      <table class="table table-hover align-middle mb-0">
+        <thead class="table-light">
+          <tr>
+            <th>Họ và Tên</th>
+            <th>Email</th>
+            <th>Số Điện Thoại</th>
+            <th>Vai Trò</th>
+            <th>Trạng Thái</th>
+            <th>Ngày Tạo</th>
+            <th class="text-end">Hành Động</th>
+          </tr>
+        </thead>
+        <tbody>
+          <% staffList.forEach(u => { %>
+            <tr id="user-row-<%= u._id %>">
+              <td>
+                <div class="d-flex align-items-center gap-2">
+                  <div class="p-2 rounded-circle bg-light border text-primary">
+                    <i class="fa-solid fa-user"></i>
+                  </div>
+                  <strong class="text-dark"><%= u.fullName %></strong>
+                </div>
+              </td>
+              <td><%= u.email %></td>
+              <td><%= u.phone || 'Chưa cập nhật' %></td>
+              <td>
+                <span class="badge <%= u.role === 'admin' ? 'bg-danger' : 'bg-primary' %> text-uppercase">
+                  <%= u.role %>
+                </span>
+              </td>
+              <td>
+                <span class="badge <%= u.isActive ? 'bg-success' : 'bg-danger' %>">
+                  <%= u.isActive ? 'Hoạt động' : 'Đang bị khóa' %>
+                </span>
+              </td>
+              <td class="small text-muted"><%= new Date(u.createdAt).toLocaleDateString('vi-VN') %></td>
+              <td class="text-end">
+                <button class="btn btn-sm btn-outline-warning rounded-circle me-1" style="width: 34px; height: 34px;"
+                        onclick="openResetPassModal('<%= u._id %>', '<%= u.fullName %>')" title="Đặt lại mật khẩu">
+                  <i class="fa-solid fa-key"></i>
+                </button>
+                <button class="btn btn-sm <%= u.isActive ? 'btn-outline-danger' : 'btn-outline-success' %> rounded-circle" style="width: 34px; height: 34px;"
+                        onclick="toggleStaffStatus('<%= u._id %>', <%= u.isActive %>)" title="<%= u.isActive ? 'Khóa tài khoản' : 'Mở khóa' %>">
+                  <i class="fa-solid <%= u.isActive ? 'fa-lock' : 'fa-lock-open' %>"></i>
+                </button>
+              </td>
+            </tr>
+          <% }) %>
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+<!-- Modal Thêm Nhân Viên -->
+<div class="modal fade" id="staffModal" tabindex="-1">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content border-0 shadow-lg">
+      <div class="modal-header">
+        <h5 class="modal-title fw-bold">Tạo Tài Khoản Nhân Viên</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body p-4">
+        <div class="mb-3">
+          <label class="form-label fw-semibold">Họ và tên <span class="text-danger">*</span></label>
+          <input type="text" id="sFullName" class="form-control" required placeholder="Nguyễn Văn Thu Ngân">
+        </div>
+        <div class="mb-3">
+          <label class="form-label fw-semibold">Email <span class="text-danger">*</span></label>
+          <input type="email" id="sEmail" class="form-control" required placeholder="staff@orderapp.com">
+        </div>
+        <div class="mb-3">
+          <label class="form-label fw-semibold">Số điện thoại</label>
+          <input type="tel" id="sPhone" class="form-control" placeholder="0901234567">
+        </div>
+        <div class="mb-3">
+          <label class="form-label fw-semibold">Mật khẩu ban đầu <span class="text-danger">*</span></label>
+          <input type="password" id="sPassword" class="form-control" required minlength="6" placeholder="Tối thiểu 6 ký tự">
+        </div>
+        <div class="mb-3">
+          <label class="form-label fw-semibold">Vai trò</label>
+          <select id="sRole" class="form-select">
+            <option value="staff">Nhân viên (Staff)</option>
+            <option value="admin">Quản trị viên (Admin)</option>
+          </select>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary rounded-pill" data-bs-dismiss="modal">Hủy</button>
+        <button type="button" class="btn btn-primary rounded-pill px-4" onclick="saveStaff()">Tạo Tài Khoản</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Modal Đặt Lại Mật Khẩu -->
+<div class="modal fade" id="resetPassModal" tabindex="-1">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content border-0 shadow">
+      <div class="modal-header">
+        <h5 class="modal-title fw-bold" id="resetPassTitle">Đặt Lại Mật Khẩu</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body p-4">
+        <input type="hidden" id="resetUserId">
+        <div class="mb-3">
+          <label class="form-label fw-semibold">Mật khẩu mới</label>
+          <input type="password" id="resetNewPass" class="form-control" minlength="6" placeholder="••••••••" required>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary rounded-pill" data-bs-dismiss="modal">Hủy</button>
+        <button type="button" class="btn btn-warning rounded-pill px-4" onclick="submitResetPassword()">Cập Nhật Mật Khẩu</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+function openCreateStaffModal() {
+  document.getElementById('sFullName').value = '';
+  document.getElementById('sEmail').value = '';
+  document.getElementById('sPhone').value = '';
+  document.getElementById('sPassword').value = '';
+  new bootstrap.Modal(document.getElementById('staffModal')).show();
+}
+
+async function saveStaff() {
+  const fullName = document.getElementById('sFullName').value.trim();
+  const email = document.getElementById('sEmail').value.trim();
+  const phone = document.getElementById('sPhone').value.trim();
+  const password = document.getElementById('sPassword').value;
+  const role = document.getElementById('sRole').value;
+
+  if (!fullName || !email || !password) {
+    Swal.fire({ icon: 'warning', title: 'Thiếu thông tin', text: 'Vui lòng điền đủ họ tên, email và mật khẩu' });
+    return;
+  }
+
+  try {
+    const res = await fetch('/api/admin/staff', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ fullName, email, phone, password, role })
+    });
+    const result = await res.json();
+    if (!result.success) throw new Error(result.message);
+
+    bootstrap.Modal.getInstance(document.getElementById('staffModal')).hide();
+    await Swal.fire({ icon: 'success', title: 'Thành công', text: 'Đã tạo tài khoản nhân viên!' });
+    window.location.reload();
+  } catch (err) {
+    Swal.fire({ icon: 'error', title: 'Lỗi', text: err.message });
+  }
+}
+
+async function toggleStaffStatus(id, currentActive) {
+  const actionText = currentActive ? 'khóa' : 'mở khóa';
+  const confirm = await Swal.fire({
+    title: `Xác nhận ${actionText} tài khoản?`,
+    icon: 'warning',
+    showCancelButton: true,
+    confirmButtonText: 'Đồng ý'
+  });
+  if (!confirm.isConfirmed) return;
+
+  try {
+    const res = await fetch(`/api/admin/staff/${id}/toggle-status`, { method: 'PUT' });
+    const result = await res.json();
+    if (!result.success) throw new Error(result.message);
+
+    window.location.reload();
+  } catch (err) {
+    Swal.fire({ icon: 'error', title: 'Lỗi', text: err.message });
+  }
+}
+
+function openResetPassModal(id, name) {
+  document.getElementById('resetUserId').value = id;
+  document.getElementById('resetPassTitle').textContent = `Đổi mật khẩu: ${name}`;
+  document.getElementById('resetNewPass').value = '';
+  new bootstrap.Modal(document.getElementById('resetPassModal')).show();
+}
+
+async function submitResetPassword() {
+  const id = document.getElementById('resetUserId').value;
+  const newPassword = document.getElementById('resetNewPass').value;
+
+  if (!newPassword || newPassword.length < 6) {
+    Swal.fire({ icon: 'warning', title: 'Mật khẩu quá ngắn', text: 'Mật khẩu phải tối thiểu 6 ký tự' });
+    return;
+  }
+
+  try {
+    const res = await fetch(`/api/admin/staff/${id}/reset-password`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ newPassword })
+    });
+    const result = await res.json();
+    if (!result.success) throw new Error(result.message);
+
+    bootstrap.Modal.getInstance(document.getElementById('resetPassModal')).hide();
+    Swal.fire({ icon: 'success', title: 'Thành công', text: 'Đã đặt lại mật khẩu!' });
+  } catch (err) {
+    Swal.fire({ icon: 'error', title: 'Lỗi', text: err.message });
+  }
+}
+</script>

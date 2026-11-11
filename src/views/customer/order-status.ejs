@@ -1,0 +1,568 @@
+<div class="container py-3">
+  <!-- Top bar -->
+  <div class="d-flex flex-wrap justify-content-between align-items-center mb-4">
+    <div>
+      <div class="d-flex align-items-center gap-2">
+        <h3 class="fw-bold mb-0">Đơn Hàng #<%= order.orderCode %></h3>
+        <span class="badge rounded-pill px-3 py-2 text-uppercase" id="orderStatusBadge" style="font-size: 0.85rem;">
+          <%= order.status %>
+        </span>
+      </div>
+      <p class="text-muted small mb-0 mt-1">
+        <i class="fa-solid fa-chair text-primary me-1"></i> <%= order.table ? order.table.tableNumber : '' %>
+        • Đặt lúc: <%= new Date(order.createdAt).toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' }) %>
+        (<%= new Date(order.createdAt).toLocaleDateString('vi-VN') %>)
+      </p>
+    </div>
+
+    <div class="d-flex gap-2 mt-3 mt-md-0" id="orderActionsBar">
+      <% if (order.status === 'pending' && !order.isLocked) { %>
+        <button id="btnCancelOrder" class="btn btn-outline-danger btn-sm rounded-pill px-3" onclick="cancelMyOrder()">
+          <i class="fa-solid fa-xmark me-1"></i> Hủy Đơn Hàng
+        </button>
+      <% } %>
+      <% if (!['completed', 'cancelled', 'rejected'].includes(order.status)) { %>
+        <button id="btnAddMoreItems" class="btn btn-primary btn-sm rounded-pill px-3" data-bs-toggle="modal" data-bs-target="#addMoreItemsModal">
+          <i class="fa-solid fa-plus me-1"></i> Gọi Thêm Món
+        </button>
+      <% } %>
+    </div>
+  </div>
+
+  <!-- Stepper Tracker -->
+  <div class="custom-card p-4 mb-4 border-0 shadow-sm">
+    <h5 class="fw-bold mb-3"><i class="fa-solid fa-route text-primary me-2"></i> Tiến Trình Đơn Hàng</h5>
+    <div class="status-stepper" id="stepper">
+      <!-- Steps rendered by JS based on current status -->
+    </div>
+
+    <% if (order.rejectReason || order.cancelReason) { %>
+      <div class="alert alert-danger mt-3 mb-0 rounded-3">
+        <i class="fa-solid fa-circle-exclamation me-2"></i>
+        <strong>Lý do:</strong> <%= order.rejectReason || order.cancelReason %>
+      </div>
+    <% } %>
+
+    <div id="liveLockNotice" class="alert alert-info mt-3 mb-0 rounded-3" style="<%= order.isLocked ? '' : 'display: none;' %>">
+      <i class="fa-solid fa-lock me-2"></i>
+      Đơn hàng đã được nhân viên tiếp nhận và khóa chỉnh sửa. Nếu muốn đổi món, vui lòng nhờ nhân viên phục vụ tại bàn.
+    </div>
+  </div>
+
+  <div class="row g-4">
+    <!-- Items list -->
+    <div class="col-lg-8">
+      <div class="custom-card p-4 border-0 shadow-sm">
+        <div class="d-flex justify-content-between align-items-center mb-3 pb-2 border-bottom">
+          <h5 class="fw-bold mb-0"><i class="fa-solid fa-list-check text-primary me-2"></i> Danh Sách Món (<span id="itemsCount"><%= order.items.length %></span>)</h5>
+          <% if (!order.isLocked && order.status === 'pending') { %>
+            <span id="canEditBadge" class="badge bg-warning text-dark"><i class="fa-solid fa-pen me-1"></i> Có thể sửa/xóa</span>
+          <% } %>
+        </div>
+
+        <div id="itemsContainer">
+          <% order.items.forEach((it, idx) => { %>
+            <div class="d-flex flex-wrap align-items-center justify-content-between p-3 mb-2 rounded-3 border bg-white" id="item-row-<%= it._id %>">
+              <div class="d-flex gap-3 align-items-center">
+                <div class="badge bg-secondary-subtle text-secondary rounded-pill p-2" style="font-size: 0.9rem;">
+                  Đợt <%= it.addedRound || 1 %>
+                </div>
+                <div>
+                  <h6 class="fw-bold mb-1"><%= it.nameSnapshot %></h6>
+                  <div class="small text-muted">
+                    <% if (it.selectedOptions && it.selectedOptions.length > 0) { %>
+                      <%= it.selectedOptions.map(o => `${o.optionName}: ${o.choiceLabel}`).join(' | ') %>
+                    <% } else { %>
+                      Tiêu chuẩn
+                    <% } %>
+                  </div>
+                  <% if (it.note) { %>
+                    <div class="small text-secondary fst-italic"><i class="fa-regular fa-comment me-1"></i><%= it.note %></div>
+                  <% } %>
+                  <div class="small fw-semibold text-primary mt-1">
+                    <%= (it.priceSnapshot + (it.selectedOptions ? it.selectedOptions.reduce((s, o) => s + (o.extraPrice || 0), 0) : 0)).toLocaleString('vi-VN') %>đ × <%= it.quantity %>
+                  </div>
+                </div>
+              </div>
+
+              <div class="d-flex align-items-center gap-2 mt-2 mt-sm-0">
+                <span class="badge bg-light text-dark border me-2">
+                  <%= it.itemStatus %>
+                </span>
+
+                <% if (!order.isLocked && order.status === 'pending') { %>
+                  <button class="btn btn-outline-secondary btn-sm rounded-circle btn-edit-item" style="width: 32px; height: 32px;"
+                          onclick="openEditItemModal('<%= it._id %>', <%= it.quantity %>, '<%= it.note || '' %>')">
+                    <i class="fa-solid fa-pen" style="font-size: 0.75rem;"></i>
+                  </button>
+                  <button class="btn btn-outline-danger btn-sm rounded-circle btn-remove-item" style="width: 32px; height: 32px;"
+                          onclick="removeOrderItem('<%= it._id %>')">
+                    <i class="fa-solid fa-trash" style="font-size: 0.75rem;"></i>
+                  </button>
+                <% } %>
+              </div>
+            </div>
+          <% }) %>
+        </div>
+      </div>
+    </div>
+
+    <!-- Summary & Payment Info -->
+    <div class="col-lg-4">
+      <div class="custom-card p-4 border-0 shadow-sm sticky-top" style="top: 85px;">
+        <h5 class="fw-bold mb-3"><i class="fa-solid fa-receipt text-primary me-2"></i> Chi Phí Đơn Hàng</h5>
+
+        <div class="d-flex justify-content-between mb-2">
+          <span class="text-muted">Tạm tính:</span>
+          <span class="fw-semibold" id="subtotalVal"><%= order.subtotal.toLocaleString('vi-VN') %>đ</span>
+        </div>
+
+        <% if (order.discount > 0) { %>
+          <div class="d-flex justify-content-between mb-2 text-success">
+            <span>Giảm giá (Coupon):</span>
+            <span class="fw-semibold" id="discountVal">-<%= order.discount.toLocaleString('vi-VN') %>đ</span>
+          </div>
+        <% } %>
+
+        <hr>
+
+        <div class="d-flex justify-content-between align-items-center mb-3">
+          <span class="fw-bold fs-5">Tổng thanh toán:</span>
+          <span class="fw-bold fs-4 text-primary" id="totalAmountVal"><%= order.totalAmount.toLocaleString('vi-VN') %>đ</span>
+        </div>
+
+        <div class="p-3 bg-light rounded-3 mb-3 small">
+          <div class="d-flex justify-content-between mb-1">
+            <span class="text-muted">Thanh toán:</span>
+            <span class="badge <%= order.paymentStatus === 'paid' ? 'bg-success' : 'bg-warning text-dark' %>">
+              <%= order.paymentStatus === 'paid' ? 'ĐÃ THANH TOÁN' : 'CHƯA THANH TOÁN' %>
+            </span>
+          </div>
+          <div class="d-flex justify-content-between mb-1">
+            <span class="text-muted">Phương thức:</span>
+            <span class="text-capitalize fw-semibold"><%= order.paymentMethod %></span>
+          </div>
+          <% if (order.customerName) { %>
+            <div class="d-flex justify-content-between">
+              <span class="text-muted">Khách hàng:</span>
+              <span class="fw-semibold"><%= order.customerName %></span>
+            </div>
+          <% } %>
+        </div>
+
+        <a href="/menu?table=<%= encodeURIComponent(order.table ? order.table.tableNumber : '') %>" class="btn btn-outline-primary w-100 rounded-pill py-2">
+          <i class="fa-solid fa-utensils me-1"></i> Quay Lại Thực Đơn
+        </a>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Modal Chỉnh Sửa Món Của Khách (khi Pending) -->
+<div class="modal fade" id="editItemModal" tabindex="-1">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content border-0 shadow">
+      <div class="modal-header">
+        <h5 class="modal-title fw-bold">Chỉnh Sửa Món</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body">
+        <input type="hidden" id="editItemId">
+        <div class="mb-3">
+          <label class="form-label fw-semibold">Số lượng</label>
+          <div class="d-flex align-items-center gap-2">
+            <button class="btn btn-outline-secondary btn-sm" onclick="changeEditQty(-1)">-</button>
+            <input type="number" id="editItemQty" class="form-control text-center" style="width: 80px;" min="1" value="1">
+            <button class="btn btn-outline-secondary btn-sm" onclick="changeEditQty(1)">+</button>
+          </div>
+        </div>
+        <div class="mb-3">
+          <label class="form-label fw-semibold">Ghi chú</label>
+          <input type="text" id="editItemNote" class="form-control" placeholder="Ghi chú thêm...">
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary rounded-pill" data-bs-dismiss="modal">Đóng</button>
+        <button type="button" class="btn btn-primary rounded-pill px-4" onclick="saveItemChanges()">Lưu Thay Đổi</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Modal Gọi Thêm Món (Round mới) -->
+<div class="modal fade" id="addMoreItemsModal" tabindex="-1">
+  <div class="modal-dialog modal-dialog-centered modal-lg modal-dialog-scrollable">
+    <div class="modal-content border-0 shadow-lg">
+      <div class="modal-header">
+        <h5 class="modal-title fw-bold"><i class="fa-solid fa-plus text-primary me-2"></i> Gọi Thêm Món Cho Bàn</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body p-4">
+        <p class="text-muted small">Chọn các món bạn muốn gọi thêm vào đơn hiện tại. Nhân viên sẽ tiếp nhận và phục vụ bạn sớm nhất.</p>
+        <div class="row g-3" id="availableProductsToAdd">
+          <% products.forEach(p => { %>
+            <div class="col-md-6">
+              <div class="custom-card p-2 border d-flex gap-2 align-items-center justify-content-between">
+                <div class="d-flex gap-2 align-items-center">
+                  <img src="<%= (p.images && p.images.length > 0) ? p.images[0] : '/images/default-food.png' %>" class="rounded-2" style="width: 50px; height: 50px; object-fit: cover;">
+                  <div>
+                    <h6 class="fw-bold mb-0 text-truncate" style="max-width: 170px;"><%= p.name %></h6>
+                    <span class="text-primary small fw-semibold"><%= p.price.toLocaleString('vi-VN') %>đ</span>
+                  </div>
+                </div>
+                <div>
+                  <button class="btn btn-outline-primary btn-sm rounded-pill px-3" onclick="addMoreOneProduct('<%= p._id %>', '<%= p.name %>', <%= p.price %>)">
+                    + Thêm
+                  </button>
+                </div>
+              </div>
+            </div>
+          <% }) %>
+        </div>
+
+        <div class="mt-4 pt-3 border-top">
+          <h6 class="fw-bold">Món gọi thêm đã chọn:</h6>
+          <div id="additionalItemsQueue" class="mb-3">
+            <div class="text-muted small" id="queueEmptyNotice">Chưa chọn món nào để gọi thêm</div>
+          </div>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary rounded-pill" data-bs-dismiss="modal">Hủy</button>
+        <button type="button" class="btn btn-primary rounded-pill px-4" id="btnSubmitAddMore" onclick="submitAddMoreItems()" disabled>
+          Xác Nhận Gọi Thêm
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+const orderId = '<%= order._id %>';
+const orderCode = '<%= order.orderCode %>';
+let currentStatus = '<%= order.status %>';
+let isLocked = <%= order.isLocked %>;
+
+// Socket.IO Realtime Connection
+const socket = io();
+socket.emit('join:order', orderId);
+
+socket.on('order:status-changed', (data) => {
+  if (data.orderId === orderId) {
+    currentStatus = data.status;
+    if (data.isLocked !== undefined) isLocked = data.isLocked;
+
+    updateUIStatus(data.status, data.reason);
+
+    Swal.fire({
+      icon: 'info',
+      title: 'Cập nhật trạng thái đơn!',
+      text: `Đơn hàng của bạn đã chuyển sang: ${getStatusLabel(data.status)}`,
+      timer: 3000,
+      showConfirmButton: false
+    });
+  }
+});
+
+socket.on('order:updated', (data) => {
+  if (data.orderId === orderId) {
+    document.getElementById('subtotalVal').textContent = formatCurrency(data.subtotal);
+    document.getElementById('totalAmountVal').textContent = formatCurrency(data.totalAmount);
+    // Reload lại trang sau 1s để cập nhật toàn bộ mảng món
+    setTimeout(() => window.location.reload(), 1200);
+  }
+});
+
+const STEPS = [
+  { key: 'pending', title: 'Chờ Xác Nhận', icon: 'fa-clock' },
+  { key: 'confirmed', title: 'Đã Xác Nhận', icon: 'fa-check' },
+  { key: 'preparing', title: 'Đang Pha Chế', icon: 'fa-blender' },
+  { key: 'ready', title: 'Sẵn Sàng', icon: 'fa-bell-concierge' },
+  { key: 'served', title: 'Đang Phục Vụ', icon: 'fa-mug-hot' },
+  { key: 'completed', title: 'Hoàn Tất', icon: 'fa-flag-checkered' }
+];
+
+function renderStepper(status) {
+  const container = document.getElementById('stepper');
+  if (status === 'cancelled') {
+    container.innerHTML = `
+      <div class="text-center w-100 py-3 text-danger fw-bold">
+        <i class="fa-solid fa-circle-xmark fs-2 mb-2"></i><br>
+        ĐƠN HÀNG ĐÃ ĐƯỢC HỦY
+      </div>
+    `;
+    return;
+  }
+  if (status === 'rejected') {
+    container.innerHTML = `
+      <div class="text-center w-100 py-3 text-danger fw-bold">
+        <i class="fa-solid fa-ban fs-2 mb-2"></i><br>
+        ĐƠN HÀNG ĐÃ BỊ TỪ CHỐI
+      </div>
+    `;
+    return;
+  }
+
+  const currentIndex = STEPS.findIndex((s) => s.key === status);
+
+  container.innerHTML = STEPS.map((s, idx) => {
+    let stateClass = '';
+    if (idx < currentIndex) stateClass = 'completed';
+    else if (idx === currentIndex) stateClass = 'active';
+
+    return `
+      <div class="step-item ${stateClass}">
+        <div class="step-icon">
+          <i class="fa-solid ${s.icon}"></i>
+        </div>
+        <div class="step-title">${s.title}</div>
+      </div>
+    `;
+  }).join('');
+}
+
+function getStatusLabel(s) {
+  const map = {
+    pending: 'Chờ xác nhận',
+    confirmed: 'Đã xác nhận',
+    preparing: 'Đang pha chế',
+    ready: 'Sẵn sàng phục vụ',
+    served: 'Đang phục vụ',
+    completed: 'Hoàn tất',
+    cancelled: 'Đã hủy',
+    rejected: 'Bị từ chối'
+  };
+  return map[s] || s;
+}
+
+function updateUIStatus(status, reason) {
+  const badge = document.getElementById('orderStatusBadge');
+  badge.textContent = getStatusLabel(status);
+
+  const colors = {
+    pending: 'bg-warning text-dark',
+    confirmed: 'bg-primary text-white',
+    preparing: 'bg-info text-white',
+    ready: 'bg-secondary text-white',
+    served: 'bg-success text-white',
+    completed: 'bg-dark text-white',
+    cancelled: 'bg-danger text-white',
+    rejected: 'bg-danger text-white'
+  };
+  badge.className = `badge rounded-pill px-3 py-2 text-uppercase ${colors[status] || 'bg-secondary'}`;
+
+  renderStepper(status);
+
+  // Khi chuyển sang bước xác nhận hoặc không còn pending / bị khóa: Ẩn nút hủy đơn
+  const btnCancel = document.getElementById('btnCancelOrder');
+  if (btnCancel && (status !== 'pending' || isLocked)) {
+    btnCancel.style.display = 'none';
+  }
+
+  // Ẩn badge và nút sửa / xóa món khi đã sang bước xác nhận hoặc bị khóa
+  const canEditBadge = document.getElementById('canEditBadge');
+  if (canEditBadge && (status !== 'pending' || isLocked)) {
+    canEditBadge.style.display = 'none';
+  }
+  if (status !== 'pending' || isLocked) {
+    document.querySelectorAll('.btn-edit-item, .btn-remove-item').forEach(el => {
+      el.style.display = 'none';
+    });
+  }
+
+  // Ẩn nút gọi thêm nếu đơn đã kết thúc hoặc hủy
+  const btnAddMore = document.getElementById('btnAddMoreItems');
+  if (btnAddMore && ['completed', 'cancelled', 'rejected'].includes(status)) {
+    btnAddMore.style.display = 'none';
+  }
+
+  if (isLocked || status !== 'pending') {
+    const liveLockNotice = document.getElementById('liveLockNotice');
+    if (liveLockNotice) liveLockNotice.style.display = 'block';
+  }
+}
+
+// Khởi tạo trạng thái ban đầu
+updateUIStatus(currentStatus);
+
+// Xử lý chỉnh sửa món (khi Pending)
+function openEditItemModal(itemId, qty, note) {
+  document.getElementById('editItemId').value = itemId;
+  document.getElementById('editItemQty').value = qty;
+  document.getElementById('editItemNote').value = note;
+  new bootstrap.Modal(document.getElementById('editItemModal')).show();
+}
+
+function changeEditQty(delta) {
+  const inp = document.getElementById('editItemQty');
+  let val = parseInt(inp.value, 10) || 1;
+  val = Math.max(1, val + delta);
+  inp.value = val;
+}
+
+async function saveItemChanges() {
+  const itemId = document.getElementById('editItemId').value;
+  const quantity = parseInt(document.getElementById('editItemQty').value, 10);
+  const note = document.getElementById('editItemNote').value.trim();
+
+  try {
+    const res = await fetch(`/api/customer/orders/${orderId}/items/${itemId}`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ quantity, note })
+    });
+    const result = await res.json();
+    if (!result.success) throw new Error(result.message);
+
+    bootstrap.Modal.getInstance(document.getElementById('editItemModal')).hide();
+    window.location.reload();
+  } catch (err) {
+    Swal.fire({ icon: 'error', title: 'Lỗi', text: err.message });
+  }
+}
+
+async function removeOrderItem(itemId) {
+  const confirm = await Swal.fire({
+    title: 'Xóa món này?',
+    text: 'Bạn có chắc chắn muốn xóa món này khỏi đơn hàng?',
+    icon: 'warning',
+    showCancelButton: true,
+    confirmButtonText: 'Đồng ý xóa',
+    cancelButtonText: 'Hủy'
+  });
+
+  if (!confirm.isConfirmed) return;
+
+  try {
+    const res = await fetch(`/api/customer/orders/${orderId}/items/${itemId}`, {
+      method: 'DELETE'
+    });
+    const result = await res.json();
+    if (!result.success) throw new Error(result.message);
+
+    window.location.reload();
+  } catch (err) {
+    Swal.fire({ icon: 'error', title: 'Lỗi', text: err.message });
+  }
+}
+
+async function cancelMyOrder() {
+  const { value: reason } = await Swal.fire({
+    title: 'Hủy Đơn Hàng?',
+    input: 'text',
+    inputLabel: 'Lý do bạn muốn hủy đơn',
+    inputPlaceholder: 'Khách đổi ý, muốn đặt lại...',
+    showCancelButton: true,
+    confirmButtonText: 'Xác Nhận Hủy',
+    cancelButtonText: 'Không hủy'
+  });
+
+  if (reason === undefined) return;
+
+  try {
+    const res = await fetch(`/api/customer/orders/${orderId}/cancel`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ reason: reason || 'Khách hủy đơn' })
+    });
+    const result = await res.json();
+    if (!result.success) throw new Error(result.message);
+
+    Swal.fire({ icon: 'success', title: 'Đã hủy đơn thành công' });
+    window.location.reload();
+  } catch (err) {
+    Swal.fire({ icon: 'error', title: 'Lỗi hủy đơn', text: err.message });
+  }
+}
+
+// Xử lý gọi thêm món
+let addMoreQueue = [];
+
+function addMoreOneProduct(prodId, prodName, price) {
+  const existing = addMoreQueue.find((i) => i.product === prodId);
+  if (existing) {
+    existing.quantity += 1;
+  } else {
+    addMoreQueue.push({
+      product: prodId,
+      name: prodName,
+      price,
+      quantity: 1,
+      selectedOptions: [],
+      note: ''
+    });
+  }
+  renderAddMoreQueue();
+}
+
+function renderAddMoreQueue() {
+  const container = document.getElementById('additionalItemsQueue');
+  const btn = document.getElementById('btnSubmitAddMore');
+
+  if (addMoreQueue.length === 0) {
+    container.innerHTML = '<div class="text-muted small">Chưa chọn món nào để gọi thêm</div>';
+    btn.disabled = true;
+    return;
+  }
+
+  btn.disabled = false;
+  container.innerHTML = addMoreQueue.map((item, idx) => `
+    <div class="d-flex justify-content-between align-items-center p-2 mb-2 bg-light rounded-3 border">
+      <div>
+        <span class="fw-semibold small">${item.name}</span>
+        <span class="text-primary small ms-2">${formatCurrency(item.price)}</span>
+      </div>
+      <div class="d-flex align-items-center gap-1">
+        <button class="btn btn-sm btn-outline-secondary px-2 py-0" onclick="changeQueueQty(${idx}, -1)">-</button>
+        <span class="small fw-bold px-1">${item.quantity}</span>
+        <button class="btn btn-sm btn-outline-secondary px-2 py-0" onclick="changeQueueQty(${idx}, 1)">+</button>
+        <button class="btn btn-sm btn-outline-danger px-2 py-0 ms-1" onclick="removeQueueItem(${idx})">×</button>
+      </div>
+    </div>
+  `).join('');
+}
+
+function changeQueueQty(idx, delta) {
+  addMoreQueue[idx].quantity += delta;
+  if (addMoreQueue[idx].quantity <= 0) {
+    addMoreQueue.splice(idx, 1);
+  }
+  renderAddMoreQueue();
+}
+
+function removeQueueItem(idx) {
+  addMoreQueue.splice(idx, 1);
+  renderAddMoreQueue();
+}
+
+async function submitAddMoreItems() {
+  if (addMoreQueue.length === 0) return;
+
+  const btn = document.getElementById('btnSubmitAddMore');
+  btn.disabled = true;
+  btn.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span> Đang gửi...';
+
+  try {
+    const res = await fetch(`/api/customer/orders/${orderId}/items`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ items: addMoreQueue })
+    });
+    const result = await res.json();
+    if (!result.success) throw new Error(result.message);
+
+    bootstrap.Modal.getInstance(document.getElementById('addMoreItemsModal')).hide();
+    await Swal.fire({
+      icon: 'success',
+      title: 'Đã gửi yêu cầu gọi thêm!',
+      text: 'Món gọi thêm đang chờ nhân viên xác nhận.'
+    });
+    window.location.reload();
+  } catch (err) {
+    Swal.fire({ icon: 'error', title: 'Lỗi', text: err.message });
+  } finally {
+    btn.disabled = false;
+    btn.innerHTML = 'Xác Nhận Gọi Thêm';
+  }
+}
+</script>
